@@ -36,16 +36,22 @@ namespace Spearfighter.Game
             var p = _sim.Players[localIndex];
             int count = 0;
             if (show && p.Alive && _sim.TryGetChargePreview(p, out var origin, out var vel, out _))
-            {
                 count = Ballistics.PredictPath(origin, vel, _sim.Config.SpearGravity,
                     _sim.Config.TrajectoryStepDt, _sim.World, _sim.World.GroundHeight, _buffer);
-            }
-            for (int i = 0; i < _dots.Length; i++)
+
+            // Hide the first couple of dots at the muzzle (they'd blob over the spear tip),
+            // and enlarge the final dot as a landing marker.
+            const int skip = 2;
+            int shown = 0;
+            for (int i = skip; i < count && shown < _dots.Length; i++)
             {
-                bool on = i < count;
-                if (_dots[i].activeSelf != on) _dots[i].SetActive(on);
-                if (on) _dots[i].transform.position = _buffer[i].ToUnity();
+                var dot = _dots[shown++];
+                dot.transform.position = _buffer[i].ToUnity();
+                dot.transform.localScale = Vector3.one * (i == count - 1 ? 0.4f : 0.16f);
+                if (!dot.activeSelf) dot.SetActive(true);
             }
+            for (int i = shown; i < _dots.Length; i++)
+                if (_dots[i].activeSelf) _dots[i].SetActive(false);
         }
     }
 }

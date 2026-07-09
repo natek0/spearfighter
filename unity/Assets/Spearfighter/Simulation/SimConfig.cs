@@ -44,8 +44,12 @@ namespace Spearfighter.Simulation
         public float AimSensMultiplier = 0.42f;// AIM_SENS_MULT: look sensitivity while charging
         public int MaxSpears = 14;             // MAX_SPEARS: pooled projectile cap
         public float SpearLifeSeconds = 6.0f;  // prototype spear life
-        public float SpawnForwardOffset = 0.6f;// muzzle offset in front of eye
-        public float SpawnVerticalOffset = -0.1f;
+        // Muzzle = where the held spear leaves the hand (lower-RIGHT of the view).
+        // Both the thrown spear and the aim-arc originate here so the arc emanates
+        // from the visible spear tip, not screen center.
+        public float MuzzleForward = 0.6f;
+        public float MuzzleRight = 0.32f;
+        public float MuzzleUp = -0.22f;
 
         // ---- combat resolution ----
         public float EnemyHurtRadius = 1.05f;  // enemyState.hitRadius: projectile hit sphere

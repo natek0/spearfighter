@@ -196,11 +196,22 @@ namespace Spearfighter.Simulation
         {
             Vector3 dir = SimMath.NormalizeSafe(SimMath.Forward(p.Yaw, p.Pitch));
             float speed = Config.ThrowSpeedMin + (Config.ThrowSpeedMax - Config.ThrowSpeedMin) * power;
-            Vector3 origin = p.EyePosition(Config.EyeHeight)
-                             + dir * Config.SpawnForwardOffset
-                             + new Vector3(0f, Config.SpawnVerticalOffset, 0f);
+            Vector3 origin = MuzzleOrigin(p);
             SpawnSpear(p.Id, origin, dir * speed);
             Emit(SimEventType.SpearThrown, p.Id, position: origin, amount: power);
+        }
+
+        /// <summary>World position the held spear leaves the hand — lower-right of the
+        /// view. The camera mirrors X vs the sim frame, so screen-right is -right here.</summary>
+        public Vector3 MuzzleOrigin(PlayerState p)
+        {
+            Vector3 fwd = SimMath.NormalizeSafe(SimMath.Forward(p.Yaw, p.Pitch));
+            Vector3 right = SimMath.NormalizeSafe(Vector3.Cross(fwd, new Vector3(0f, 1f, 0f)));
+            Vector3 up = Vector3.Cross(right, fwd);
+            return p.EyePosition(Config.EyeHeight)
+                 + fwd * Config.MuzzleForward
+                 - right * Config.MuzzleRight
+                 + up * Config.MuzzleUp;
         }
 
         // ---- projectiles ----
@@ -443,7 +454,7 @@ namespace Spearfighter.Simulation
             power = ChargePower(p.ChargeHeldTime);
             Vector3 dir = SimMath.NormalizeSafe(SimMath.Forward(p.Yaw, p.Pitch));
             float speed = Config.ThrowSpeedMin + (Config.ThrowSpeedMax - Config.ThrowSpeedMin) * power;
-            origin = p.EyePosition(Config.EyeHeight) + dir * Config.SpawnForwardOffset + new Vector3(0f, Config.SpawnVerticalOffset, 0f);
+            origin = MuzzleOrigin(p);
             velocity = dir * speed;
             return true;
         }

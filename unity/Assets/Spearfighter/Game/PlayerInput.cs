@@ -40,7 +40,7 @@ namespace Spearfighter.Game
 
         // touch finger tracking
         private int _moveId = -1, _lookId = -1, _atkId = -1, _jumpId = -1, _buildId = -1;
-        private Vector2 _moveOrigin, _lookLast, _atkLast;
+        private Vector2 _moveOrigin, _lookLast, _atkLast, _buildLast;
         private const float JoyRadius = 55f;
 
         private void Awake()
@@ -142,7 +142,7 @@ namespace Spearfighter.Game
         {
             if (AttackRect.Contains(p)) { _atkId = id; _attackHeld = true; _atkLast = p; _pendDrag = 0f; return; }
             if (JumpRect.Contains(p)) { _jumpId = id; _jumpHeld = true; return; }
-            if (BuildRect.Contains(p)) { _buildId = id; _buildHeld = true; return; }
+            if (BuildRect.Contains(p)) { _buildId = id; _buildHeld = true; _buildLast = p; return; }
             if (RotateRect.Contains(p)) { _rotateLatched = true; return; }
             if (p.x < Screen.width * 0.5f && _moveId < 0)
             {
@@ -174,6 +174,14 @@ namespace Spearfighter.Game
                 _pendYaw += d.x * lookTouchSens;
                 _pendPitch += -d.y * lookTouchSens;
                 _atkLast = p;
+            }
+            else if (id == _buildId)
+            {
+                // let the build thumb drag to look/aim, same as the attack thumb
+                Vector2 d = p - _buildLast;
+                _pendYaw += d.x * lookTouchSens;
+                _pendPitch += -d.y * lookTouchSens;
+                _buildLast = p;
             }
         }
 

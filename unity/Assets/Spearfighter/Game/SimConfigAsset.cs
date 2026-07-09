@@ -42,6 +42,11 @@ namespace Spearfighter.Game
         public int maxSpears = 14;
         public float spearLifeSeconds = 6.0f;
 
+        [Header("Held spear muzzle (viewmodel + arc origin)")]
+        public float muzzleForward = 0.6f;
+        public float muzzleRight = 0.32f;
+        public float muzzleUp = -0.22f;
+
         [Header("Combat resolution")]
         public float enemyHurtRadius = 1.05f;
         public float spearDamage = 34f;
@@ -82,6 +87,7 @@ namespace Spearfighter.Game
                 SpearGravity = spearGravity, JabRange = jabRange, JabHalfAngleDeg = jabHalfAngleDeg,
                 TapMaxDrag = tapMaxDrag, AimSensMultiplier = aimSensMultiplier,
                 MaxSpears = maxSpears, SpearLifeSeconds = spearLifeSeconds,
+                MuzzleForward = muzzleForward, MuzzleRight = muzzleRight, MuzzleUp = muzzleUp,
                 EnemyHurtRadius = enemyHurtRadius, SpearDamage = spearDamage,
                 JabDamage = jabDamage, MaxHealth = maxHealth,
                 TrajectoryMaxPoints = trajectoryMaxPoints, TrajectoryStepDt = trajectoryStepDt,

@@ -22,6 +22,7 @@ namespace Spearfighter.Game
         public WorldRenderer Renderer;
         public TrajectoryRenderer Trajectory;
         public HudGui Hud;
+        public ViewmodelRig Viewmodel;
         public Camera Cam;
 
         private readonly List<(int index, BotBrain brain)> _bots = new();
@@ -76,7 +77,12 @@ namespace Spearfighter.Game
         {
             var events = Sim.Events;
             for (int i = 0; i < events.Count; i++)
-                Hud.HandleEvent(events[i]);
+            {
+                var e = events[i];
+                Hud.HandleEvent(e);
+                if (Viewmodel != null && e.Type == SimEventType.SpearThrown && e.ActorId == LocalIndex)
+                    Viewmodel.OnThrow();
+            }
         }
     }
 }
