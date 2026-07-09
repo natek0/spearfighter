@@ -16,7 +16,7 @@ namespace Spearfighter.Game
     /// </summary>
     public sealed class SimulationRunner : MonoBehaviour
     {
-        public Simulation Sim;
+        public SimCore Sim;
         public int LocalIndex;
         public PlayerInput Input;
         public WorldRenderer Renderer;

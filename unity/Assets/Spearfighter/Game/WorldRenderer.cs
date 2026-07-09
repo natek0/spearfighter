@@ -11,7 +11,7 @@ namespace Spearfighter.Game
     /// </summary>
     public sealed class WorldRenderer : MonoBehaviour
     {
-        private Simulation _sim;
+        private SimCore _sim;
         private int _localIndex;
         private Camera _camera;
         private SimConfig _cfg;
@@ -21,7 +21,7 @@ namespace Spearfighter.Game
         private readonly Dictionary<int, GameObject> _builds = new();
         private GameObject _ghost;
 
-        public void Init(Simulation sim, int localIndex, Camera cam)
+        public void Init(SimCore sim, int localIndex, Camera cam)
         {
             _sim = sim; _localIndex = localIndex; _camera = cam; _cfg = sim.Config;
 
@@ -164,7 +164,7 @@ namespace Spearfighter.Game
 
         private static void DestroyCollider(GameObject go)
         {
-            var c = go.GetComponent<Collider>();
+            var c = go.GetComponent<UnityEngine.Collider>();
             if (c != null) Destroy(c); // sim owns collision; Unity colliders are not used
         }
 

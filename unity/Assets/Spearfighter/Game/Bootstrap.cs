@@ -25,7 +25,7 @@ namespace Spearfighter.Game
             Screen.sleepTimeout = SleepTimeout.NeverSleep;
 
             SimConfig cfg = config != null ? config.ToSimConfig() : SimConfig.Default();
-            var sim = new Simulation(cfg, seed);
+            var sim = new SimCore(cfg, seed);
 
             BuildArena(sim);
             var human = sim.AddPlayer(new System.Numerics.Vector3(0, 0, 18f), yaw: 0f);       // faces -Z
@@ -51,7 +51,7 @@ namespace Spearfighter.Game
             runner.Begin();
         }
 
-        private static void BuildArena(Simulation sim)
+        private static void BuildArena(SimCore sim)
         {
             // Mirrors the validated prototype greybox: a cover wall forcing arced
             // lobs, plus pillars for depth reference and stick targets.
@@ -62,7 +62,7 @@ namespace Spearfighter.Game
             AddBox(sim, 6, 1.4f, -16, 1.2f, 2.8f, 1.2f);
         }
 
-        private static void AddBox(Simulation sim, float cx, float cy, float cz, float sx, float sy, float sz)
+        private static void AddBox(SimCore sim, float cx, float cy, float cz, float sx, float sy, float sz)
         {
             var min = new System.Numerics.Vector3(cx - sx / 2, cy - sy / 2, cz - sz / 2);
             var max = new System.Numerics.Vector3(cx + sx / 2, cy + sy / 2, cz + sz / 2);
@@ -71,7 +71,7 @@ namespace Spearfighter.Game
             // matching visual (Unity collider stripped — sim owns collision)
             var go = GameObject.CreatePrimitive(PrimitiveType.Cube);
             go.name = "ArenaBox";
-            var col = go.GetComponent<Collider>(); if (col != null) Destroy(col);
+            var col = go.GetComponent<UnityEngine.Collider>(); if (col != null) Destroy(col);
             go.transform.position = new Vector3(cx, cy, cz);
             go.transform.localScale = new Vector3(sx, sy, sz);
             SetColor(go, new Color(0.28f, 0.32f, 0.39f));
@@ -81,7 +81,7 @@ namespace Spearfighter.Game
         {
             var ground = GameObject.CreatePrimitive(PrimitiveType.Plane);
             ground.name = "Ground";
-            var col = ground.GetComponent<Collider>(); if (col != null) Destroy(col);
+            var col = ground.GetComponent<UnityEngine.Collider>(); if (col != null) Destroy(col);
             ground.transform.position = Vector3.zero;
             ground.transform.localScale = new Vector3(20, 1, 20); // plane is 10u => 200u
             SetColor(ground, new Color(0.17f, 0.21f, 0.27f));

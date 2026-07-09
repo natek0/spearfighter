@@ -12,7 +12,7 @@ namespace Spearfighter.Game
     {
         public static Mesh BuildRamp(System.Numerics.Vector3 min, System.Numerics.Vector3 max, int axis)
         {
-            var col = Collider.Ramp(min, max, axis, 0);
+            var col = Spearfighter.Simulation.Collider.Ramp(min, max, axis, 0);
             // 4 footprint columns (xz), base at min.Y, top at the slope surface.
             float x0 = min.X, x1 = max.X, z0 = min.Z, z1 = max.Z, yb = min.Y;
             Vector3[] baseV =

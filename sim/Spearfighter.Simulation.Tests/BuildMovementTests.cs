@@ -101,7 +101,7 @@ namespace Spearfighter.Simulation.Tests
             cfg.MaxSimultaneousBuilds = 3;
             cfg.BuildCostPerPlace = 5f;
             cfg.BuildMaxEnergy = 100f;
-            var sim = new Simulation(cfg);
+            var sim = new SimCore(cfg);
             var p = sim.AddPlayer(Vector3.Zero);
             p.Pitch = -0.6f;
 
@@ -145,11 +145,11 @@ namespace Spearfighter.Simulation.Tests
             Assert.Equal(a.sim.Builds.Count, b.sim.Builds.Count);
         }
 
-        private struct Scenario { public Simulation sim; public BotBrain bot; }
+        private struct Scenario { public SimCore sim; public BotBrain bot; }
 
         private static Scenario BuildScenario()
         {
-            var sim = new Simulation(SimConfig.Default(), seed: 777);
+            var sim = new SimCore(SimConfig.Default(), seed: 777);
             sim.AddPlayer(new Vector3(0, 0, 10f), yaw: 0f);   // "human"
             sim.AddPlayer(new Vector3(0, 0, -10f), yaw: 3.14159f); // bot, facing +Z
             return new Scenario { sim = sim, bot = new BotBrain(seed: 4242) };

@@ -10,11 +10,11 @@ namespace Spearfighter.Game
     /// </summary>
     public sealed class TrajectoryRenderer : MonoBehaviour
     {
-        private Simulation _sim;
+        private SimCore _sim;
         private GameObject[] _dots;
         private System.Numerics.Vector3[] _buffer;
 
-        public void Init(Simulation sim)
+        public void Init(SimCore sim)
         {
             _sim = sim;
             int n = sim.Config.TrajectoryMaxPoints;
@@ -23,7 +23,7 @@ namespace Spearfighter.Game
             for (int i = 0; i < n; i++)
             {
                 var d = GameObject.CreatePrimitive(PrimitiveType.Sphere);
-                var c = d.GetComponent<Collider>(); if (c != null) Destroy(c);
+                var c = d.GetComponent<UnityEngine.Collider>(); if (c != null) Destroy(c);
                 d.transform.localScale = Vector3.one * 0.14f;
                 var mr = d.GetComponent<Renderer>();
                 var sh = Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard");

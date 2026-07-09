@@ -27,7 +27,7 @@ namespace Spearfighter.Simulation
 
         public BotBrain(uint seed) { _rng = new Rng(seed); }
 
-        public InputCommand Think(Simulation sim, PlayerState me, PlayerState foe, float dt)
+        public InputCommand Think(SimCore sim, PlayerState me, PlayerState foe, float dt)
         {
             var cmd = InputCommand.Empty;
             if (me == null || foe == null || !me.Alive || !foe.Alive) { _charging = false; return cmd; }

@@ -15,7 +15,7 @@ namespace Spearfighter.Simulation
     /// UnityEngine.Random — determinism flows through the seeded Rng and the fixed
     /// TickDt. Advance with Tick(commands): commands[i] drives Players[i].
     /// </summary>
-    public sealed class Simulation
+    public sealed class SimCore
     {
         public readonly SimConfig Config;
         public readonly CollisionWorld World = new CollisionWorld();
@@ -36,7 +36,7 @@ namespace Spearfighter.Simulation
         private const float TorsoOffset = 1.1f;   // hurtbox center above feet (matches prototype)
         private const float RespawnDelay = 2.0f;
 
-        public Simulation(SimConfig config, uint seed = 12345)
+        public SimCore(SimConfig config, uint seed = 12345)
         {
             Config = config ?? SimConfig.Default();
             _rng = new Rng(seed);

@@ -12,7 +12,7 @@ namespace Spearfighter.Game
     public sealed class HudGui : MonoBehaviour
     {
         private SimulationRunner _runner;
-        private Simulation _sim;
+        private SimCore _sim;
         private PlayerInput _input;
         private int _local;
 
@@ -22,7 +22,7 @@ namespace Spearfighter.Game
         private string _popText = "";
         private GUIStyle _big, _small, _pop;
 
-        public void Init(SimulationRunner runner, Simulation sim, PlayerInput input, int localIndex)
+        public void Init(SimulationRunner runner, SimCore sim, PlayerInput input, int localIndex)
         {
             _runner = runner; _sim = sim; _input = input; _local = localIndex;
         }
