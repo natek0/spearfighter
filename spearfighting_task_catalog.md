@@ -4,11 +4,11 @@
 
 ---
 
-# IMPLEMENTATION STATUS — updated 2026-07-09
+# IMPLEMENTATION STATUS — updated 2026-07-09 (after on-device iterations)
 
-*Legend: ✅ done · 🟡 partial (started; note says what's left) · ⬜ not started · ⏸ deferred by scope decision. Status covers P0/P1 only (the phases we're building). The task spec itself is unchanged and lives below this section.*
+*Legend: ✅ done · 🟡 partial (started; note says what's left) · ⬜ not started · ⏸ deferred by scope decision. Status covers P0/P1 only (the phases we're building). The task spec itself is unchanged and lives below this section. Full rationale/architecture is in `spearfighting_context_and_plan.md`.*
 
-**What runs today:** an engine-agnostic, fixed-tick, input-driven **simulation** (`unity/Assets/Spearfighter/Simulation/`, no `UnityEngine` dependency) with a **17-test xUnit suite that passes** (`cd sim && dotnet test`), plus the **Unity 6.5 view/input/HUD glue** (`unity/Assets/Spearfighter/Game/`) and a code-driven `Bootstrap` that runs the full loop from one component on an empty scene. Not yet feel-tested on a device — that's the open Phase 0 gate.
+**What runs today (and has been played on an iPhone):** an engine-agnostic, fixed-tick, input-driven **simulation** (`unity/Assets/Spearfighter/Simulation/`, no `UnityEngine` dependency) with an **18-test xUnit suite that passes** (`cd sim && dotnet test`), plus the **Unity 6.5 view/input/HUD glue** (`unity/Assets/Spearfighter/Game/`) and a code-driven `Bootstrap` that runs the full loop from one component on an empty scene. **Built and playable on-device (iPhone) via a manual Unity→Xcode pipeline.** Movement, charge-throw + jab, arced trajectory, voxel building (walk up it), first-person viewmodel, and a basic bot all work. Combat feel is broadly landing; tuning + Phase-1 depth remain. See the "build iterations" subsection below for the newest work.
 
 ### WS0 — Foundation & Architecture
 - ✅ **⚠ Simulation/rendering separation** — the centerpiece. `Simulation.Tick(commands)` is fixed-tick, engine-agnostic; rendering is strictly downstream. `noEngineReferences` on the sim asmdef *enforces* it at compile time.
@@ -75,11 +75,54 @@
 - ⏳ **⚠ Build+fight feel test in first-person** (the "can you fight inside geometry you can't see around" check) — needs device.
 - ⬜ Balance-via-telemetry (needs analytics). ⬜ Unity PlayMode smoke tests for the glue layer.
 
-### Immediate deferred set (by our scope decision, not oversights)
-Voxel custom-build editor · all backend/analytics/remote-config *backing* · netcode (WS10, Phase 3) · art/audio/perf (Phase 2) · store/monetization/compliance (Phase 4).
+### Build iterations — delta since the first Unity build (2026-07-09)
+*These supersede the matching lines above where they conflict.*
+- ✅ **On-device (iPhone) build pipeline (manual).** Unity → Xcode → device works (free
+  Apple account, 7-day provisioning). Not automated (that's CI/CD, WS0/WS15, later).
+- ✅ **Collision + character controller rewrite → voxel swept-AABB + eased step-up**
+  (WS2/WS4). Replaces the special-cased ramp collider. Player is a swept box; auto
+  step-up climbs stepped ramps (walk-up now works on device); walls block; jump-over
+  emerges. Shared **world voxel grid** = the coordinate system custom builds + netcode use.
+- ✅ **Default build → voxel staircase**, generated facing the player; **hold-to-preview,
+  release-to-place** with a translucent ghost (WS4). Energy meter + simultaneous cap over cells.
+- ✅ **First-person viewmodel** (greybox arm + held spear, lower-right) (WS7/WS2). Muzzle +
+  aim-arc originate from the spear tip. *No-clip overlay-camera version deferred* (it threw
+  at runtime; non-essential visuals now build last, in try/catch, so they can't abort startup).
+- ✅ **HUD**: `Screen.safeArea`-aware (clears the notch), forced landscape, buttons
+  bottom-right, resolution-scaled, HP + build-energy bars (WS9).
+- ✅ **Controls**: look/move corrected (handedness), and **look-while-holding-BUILD** works
+  (drag the build button to aim), matching the attack button.
 
-### How to proceed → see the **Phase sequencing** and **Critical path** sections at the bottom of this file.
-The gating next step is **Phase 0's feel gate**: open the Unity project on your phone (or Device Simulator) and confirm charge-aim-throw + jab + movement feels good with two thumbs. Everything else waits on that answer.
+### New tasks & open items (added from this build phase)
+- ⬜ **Voxel custom-build editor** (WS4 P1) — now unblocked: the world voxel grid + cell
+  representation exist. Needs: constrained editor grid, tap-to-fill UI, bitmask
+  serialization, mesh/collider from cells (collider = the same cells), per-player storage.
+- ⬜ **Build-mesh smoothing / greedy-mesh + bevel** so voxel builds read as "enhanced
+  Minecraft," not raw cubes (WS7). Collision stays the cells.
+- ⬜ **No-clip viewmodel via URP overlay camera** — revisit carefully (it crashed once);
+  optional polish (WS7).
+- ⬜ **Terrain / world generator** (hills/valleys) — future; generalize the sim's flat
+  ground to a heightfield sampler; matching Unity terrain mesh. Architecture left open.
+- ⬜ **Bot depth** (WS5) — current bot is basic; needs navigation over voxel/built geometry
+  and smarter use of builds + spacing to be a real Phase-1 opponent.
+- 🔲 **Decision — rotate-build button:** keep it or force builds to face the player?
+  (Leaning keep; low-stakes.)
+- 🟡 **Movement feel** (WS2) — voxel controller solid; accel/friction curves, coyote time,
+  and step-ease tuning still open for feel.
+
+### Still deferred (by scope decision, not oversights)
+All backend/analytics/remote-config *backing* (WS11) · netcode + mutable-world sync (WS10,
+Phase 3) · art/audio/onboarding/perf (Phase 2) · store/monetization/compliance (Phase 4) ·
+stamina/posture (may stay cut).
+
+### Where to continue (recommended next)
+Phase 0's feel gate is effectively **passed** (played on-device, mechanics feel good). The
+highest-leverage Phase 1 work now, in rough priority:
+1. **Make the bot a real opponent + tighten the greybox arena** → actually test the Phase-1
+   gate ("is 1v1 vs a bot fun in FP without feeling blind?"). This is the fun-defining step.
+2. **Voxel custom-build editor** — the marquee building feature (now unblocked).
+3. **Analytics + remote-config seam** — so tuning stops being blind.
+Plus any small feel/visual tweaks. Full context: `spearfighting_context_and_plan.md`.
 
 ---
 

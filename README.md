@@ -64,15 +64,17 @@ it to `Bootstrap`, or leave empty to use the validated prototype defaults.
 
 ## What's in / what's deferred
 
-**In (this pass):** fixed-tick sim; Scheme B input; first-person movement + jump +
-ramp/slope traversal; charge→arced-throw + jab; hitbox/hurtbox damage; projectile
-stick-on-miss; dotted trajectory preview; ramp-wall building with grid-snap/rotate/
-ghost, regenerating energy meter, and simultaneous-build cap; a bot that emits the
-same `InputCommand`; greybox arena; greybox HUD; round-based respawn.
+**In (played on iPhone):** fixed-tick sim; Scheme B input (incl. look-while-building);
+first-person movement + jump; **voxel swept-AABB collision with eased step-up** (walk up
+builds, jump over low walls); charge→arced-throw + jab; hitbox/hurtbox damage; projectile
+stick-on-miss; dotted trajectory arc from a first-person **viewmodel** (arm + held spear);
+**voxel-staircase building** with hold-to-preview placement, regenerating energy meter, and
+simultaneous-build cap; a basic bot that emits the same `InputCommand`; greybox arena;
+safe-area HUD; round-based respawn. (See `spearfighting_task_catalog.md` for full status.)
 
 **Deferred (by scope decision):**
-- Voxel custom-build editor + mesh/collider generation (WS4 P1) — Editor/art-heavy,
-  and its colliders must be *server-reconstructable*, which is really netcode work.
+- Voxel **custom-build editor** (WS4 P1) — now unblocked (the world voxel grid exists);
+  needs editor UI, bitmask serialization, and the greedy-mesh/bevel "enhanced Minecraft" look.
 - Backend / analytics / remote-config / BaaS selection (WS11) — vendor-blocked; only
   meaningful once there's a running game to measure. `SimConfig` is already the seam
   remote config will plug into.

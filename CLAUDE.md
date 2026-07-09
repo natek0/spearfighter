@@ -9,13 +9,16 @@ A first-person **mobile** (iOS + Android) spear-combat game. Players move, jump,
 combat**. Free-to-play, **cosmetics-only** monetization (no ads, no pay-to-win).
 
 ## Current status
-- **Phase 0 (combat-feel prototype): COMPLETE.** Validated on a real phone using a throwaway
-  web/Three.js build. The core charge-aim-throw + jab loop feels good on two thumbs.
-- **The web prototype is disposable and does NOT carry over** to the production codebase.
-- **Next:** rebuild the Phase 0 / Phase 1 systems in the production stack (Unity).
+- **Phase 0 rebuilt in Unity 6.5 (`6000.5.3f1`) and played on iPhone.** Movement,
+  charge-aim-throw + jab, arced trajectory preview, live **voxel** building (walk up it), a
+  first-person viewmodel, and a basic bot all work on-device. Combat feel is broadly landing.
+- **Phase 1 in progress.** Default voxel-staircase building + energy meter + simultaneous cap
+  done; **voxel custom-build editor, real bot depth, arena polish, analytics/remote-config remain.**
+- **Next:** make the bot a real opponent + tighten the arena (test the Phase-1 "fun 1v1 vs a bot
+  in FP" gate), then the voxel editor. See `spearfighting_task_catalog.md` for live status.
 
 ## Tech stack (decided)
-- **Engine:** Unity 6.x LTS, C#, **URP** (mobile render pipeline).
+- **Engine:** Unity 6.5 (`6000.5.3f1`), C#, **URP** (mobile render pipeline).
 - **Netcode (later phase):** **Photon Fusion** — server-authoritative + client prediction +
   lag compensation. NOT deterministic rollback (Quantum). Server-authoritative ⇒ strict
   determinism is NOT required.
@@ -34,12 +37,13 @@ combat**. Free-to-play, **cosmetics-only** monetization (no ads, no pay-to-win).
 - **Controls (Scheme B, two thumbs):** left = move joystick; right-side drag = look; a
   **draggable attack button** (tap = jab; hold + drag = charge/aim/throw, with **reduced look
   sensitivity while charging**); jump + build buttons on the right.
-- **Building:** **live during combat.** Default object = **slanted ramp-wall** (~1 player-height,
-  walkable top, rotatable, chainable for height). **Custom player-authored shapes** via a
-  constrained **voxel editor** — gameplay-relevant collision, copyable between players.
+- **Building:** **live during combat.** Default object = a **walkable voxel staircase**
+  (~1 player-height rise), placed via **hold-to-preview, release-to-place**. All builds live on
+  a shared **world voxel grid** (a build = local bitmask + origin + rotation) — the same
+  representation the (deferred) **custom voxel editor** and the netcode will use.
   **Place-only** (no editing placed objects). Gated by a **regenerating energy meter**, single
-  build cost, and a **cap on simultaneous builds**. Fairness/anti-turtle constraints deferred
-  to post-MVP.
+  build cost, and a **cap on simultaneous builds** (oldest despawns). Fairness/anti-turtle
+  constraints deferred to post-MVP.
 - **Projectile miss:** spear **sticks** into build/floor. **No destruction** for now.
 - **Format:** **1v1** for MVP; architecture must not preclude solo/FFA/teams later. Real-time
   PvP is the goal; **MVP plays vs bots** running on the real netcode architecture.
@@ -52,14 +56,22 @@ combat**. Free-to-play, **cosmetics-only** monetization (no ads, no pay-to-win).
 - All tunables (combat, build, economy) are **data-driven** (ScriptableObjects / remote config),
   never hardcoded.
 
-## Reference docs (in /docs)
-- `task_catalog.md` — full work breakdown (17 workstreams, phased).
-- `decision_register.md` — the 34 load-bearing decisions and their rationale.
-- `game_plan.md` — the comprehensive category-by-category plan.
+## Reference docs
+- `spearfighting_task_catalog.md` — full work breakdown + **live implementation status**.
+- `spearfighting_context_and_plan.md` — vision, locked decisions, architecture, rationale
+  (merged from the old game_plan + decision_register, which were deleted as outdated).
+- `spear_prototype.html` — the validated Phase 0 web prototype (feel/number reference only).
 
 ## Conventions
-- (To be filled in when the Unity project is scaffolded: folder layout, assembly definitions,
-  naming, formatting, test setup.)
+- **Repo layout:** `unity/` = Unity 6.5 project. `unity/Assets/Spearfighter/Simulation/` =
+  engine-agnostic sim (**no UnityEngine**, `noEngineReferences`). `unity/Assets/Spearfighter/Game/`
+  = Unity glue (view/input/HUD/bootstrap). `sim/` = dotnet solution compiling the sim + xUnit
+  tests — run with `cd sim && dotnet test` (fast, no Unity needed; ~18 tests).
+- **Run it:** open `unity/`, menu `Spearfighter ▸ Create Play Scene` (or add `Bootstrap` to an
+  empty scene), press Play. On device: File ▸ Build Profiles ▸ Build (choose **Append**) → open
+  Xcode project → Run. Verify Unity-side changes by batch-compiling (headless) before rebuilding.
+- **Core rule:** the sim key type is `SimCore` (class), driven by `SimCore.Tick(InputCommand[])`.
+  All tunables live in `SimConfig` (data-driven), never hardcoded.
 
 ## Critical-path risks (protect these)
 1. **Combat feel** — validated in Phase 0; keep protecting it through every change.
