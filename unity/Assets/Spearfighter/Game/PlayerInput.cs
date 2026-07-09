@@ -63,6 +63,7 @@ namespace Spearfighter.Game
         /// <summary>Accumulate raw input for this frame. Called every Update before ticking.</summary>
         public void Sample()
         {
+            RecomputeRects(); // track screen size / orientation so buttons stay placed
             if (IsTouch) SampleTouch();
             else SampleDesktop();
         }
@@ -70,10 +71,12 @@ namespace Spearfighter.Game
         /// <summary>Build a command for one tick and reset per-tick accumulators.</summary>
         public InputCommand Consume()
         {
+            // X is negated on both look and move: the camera-facing convention mirrors
+            // left/right relative to the sim frame, so "drag/push right" => go right.
             var cmd = new InputCommand
             {
-                Move = new System.Numerics.Vector2(_move.x, _move.y),
-                LookYawDelta = _pendYaw,
+                Move = new System.Numerics.Vector2(-_move.x, _move.y),
+                LookYawDelta = -_pendYaw,
                 LookPitchDelta = _pendPitch,
                 AttackDragPixels = _pendDrag,
                 AttackHeld = _attackHeld,

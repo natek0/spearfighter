@@ -293,12 +293,20 @@ namespace Spearfighter.Simulation
             float cx = System.MathF.Round(ground.X / g) * g;
             float cz = System.MathF.Round(ground.Z / g) * g;
 
-            bool swapped = (p.BuildRotationSteps & 1) == 1;
+            // Default the ramp to rise AWAY from the player (low edge nearest you) so
+            // you can walk straight up it; RotateBuild offsets this in 90-degree steps.
+            Vector3 f = SimMath.PlanarForward(p.Yaw);
+            int baseSteps;
+            if (System.MathF.Abs(f.Z) >= System.MathF.Abs(f.X)) baseSteps = f.Z >= 0f ? 0 : 2;
+            else baseSteps = f.X >= 0f ? 1 : 3;
+            int steps = (baseSteps + p.BuildRotationSteps) & 3;
+
+            bool swapped = (steps & 1) == 1;
             float halfX = (swapped ? Config.RampLength : Config.RampWidth) * 0.5f;
             float halfZ = (swapped ? Config.RampWidth : Config.RampLength) * 0.5f;
             min = new Vector3(cx - halfX, World.GroundHeight, cz - halfZ);
             max = new Vector3(cx + halfX, World.GroundHeight + Config.RampHeight, cz + halfZ);
-            axis = RotationToAxis(p.BuildRotationSteps);
+            axis = RotationToAxis(steps);
             return true;
         }
 

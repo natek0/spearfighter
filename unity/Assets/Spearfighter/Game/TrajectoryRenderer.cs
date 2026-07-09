@@ -25,13 +25,7 @@ namespace Spearfighter.Game
                 var d = GameObject.CreatePrimitive(PrimitiveType.Sphere);
                 var c = d.GetComponent<UnityEngine.Collider>(); if (c != null) Destroy(c);
                 d.transform.localScale = Vector3.one * 0.14f;
-                var mr = d.GetComponent<Renderer>();
-                var sh = Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard");
-                var m = new Material(sh);
-                var col = new Color(1f, 0.82f, 0.29f);
-                if (m.HasProperty("_BaseColor")) m.SetColor("_BaseColor", col);
-                if (m.HasProperty("_Color")) m.SetColor("_Color", col);
-                mr.material = m;
+                d.GetComponent<Renderer>().material = Mats.New(new Color(1f, 0.82f, 0.29f)); // arc = yellow
                 d.SetActive(false);
                 _dots[i] = d;
             }

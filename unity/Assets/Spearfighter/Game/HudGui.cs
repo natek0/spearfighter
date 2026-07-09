@@ -4,10 +4,10 @@ using Spearfighter.Simulation;
 namespace Spearfighter.Game
 {
     /// <summary>
-    /// Minimal greybox HUD (health, build energy, charge, crosshair, hit feedback)
-    /// plus the on-screen Scheme B buttons, drawn with IMGUI so the prototype runs
-    /// with zero Canvas wiring. Production HUD (uGUI/UI Toolkit, customizable
-    /// layout, FP-friendly peripheral placement) is WS9.
+    /// Minimal greybox HUD + on-screen Scheme B buttons, drawn with IMGUI so the
+    /// prototype runs with zero Canvas wiring. Everything is sized relative to
+    /// Screen.height ("u" units) because on a Retina phone OnGUI works in raw
+    /// pixels — fixed-pixel UI would be microscopic. Production HUD is WS9.
     /// </summary>
     public sealed class HudGui : MonoBehaviour
     {
@@ -17,10 +17,10 @@ namespace Spearfighter.Game
         private int _local;
 
         private int _hits;
-        private float _flash;      // crosshair flash timer
+        private float _flash;
         private float _popTimer;
         private string _popText = "";
-        private GUIStyle _big, _small, _pop;
+        private GUIStyle _big, _small, _pop, _btn;
 
         public void Init(SimulationRunner runner, SimCore sim, PlayerInput input, int localIndex)
         {
@@ -32,15 +32,13 @@ namespace Spearfighter.Game
             switch (e.Type)
             {
                 case SimEventType.Hit when e.ActorId == _local:
-                    _hits++;
-                    _flash = 0.09f;
+                    _hits++; _flash = 0.09f;
                     _popText = e.HitKind == HitKind.Jab ? "JAB!" : "HIT!";
                     _popTimer = 0.22f;
                     if (_input != null && _input.IsTouch) Handheld.Vibrate();
                     break;
                 case SimEventType.Jab when e.ActorId == _local:
-                    _flash = 0.06f;
-                    break;
+                    _flash = 0.06f; break;
             }
         }
 
@@ -53,12 +51,14 @@ namespace Spearfighter.Game
         private void EnsureStyles()
         {
             if (_big != null) return;
-            _big = new GUIStyle(GUI.skin.label) { fontSize = 16, fontStyle = FontStyle.Bold };
-            _big.normal.textColor = new Color(0.92f, 0.94f, 0.96f);
-            _small = new GUIStyle(GUI.skin.label) { fontSize = 12 };
-            _small.normal.textColor = new Color(0.56f, 0.64f, 0.72f);
-            _pop = new GUIStyle(GUI.skin.label) { fontSize = 26, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleCenter };
+            _big = new GUIStyle(GUI.skin.label) { fontStyle = FontStyle.Bold };
+            _big.normal.textColor = new Color(0.94f, 0.96f, 0.98f);
+            _small = new GUIStyle(GUI.skin.label);
+            _small.normal.textColor = new Color(0.85f, 0.9f, 0.95f);
+            _pop = new GUIStyle(GUI.skin.label) { fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleCenter };
             _pop.normal.textColor = new Color(1f, 0.82f, 0.29f);
+            _btn = new GUIStyle(GUI.skin.label) { fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleCenter };
+            _btn.normal.textColor = Color.white;
         }
 
         private void OnGUI()
@@ -66,73 +66,91 @@ namespace Spearfighter.Game
             if (_sim == null) return;
             EnsureStyles();
             var p = _sim.Players[_local];
-            float w = Screen.width, h = Screen.height;
+            float W = Screen.width, H = Screen.height;
+            float u = H / 900f; // scale unit (design for a 900px-tall reference)
+
+            _big.fontSize = (int)(26 * u);
+            _small.fontSize = (int)(19 * u);
+            _pop.fontSize = (int)(42 * u);
+            _btn.fontSize = (int)(21 * u);
 
             // crosshair
-            var cross = new Color(0.92f, 0.94f, 0.96f, 0.85f);
-            if (_flash > 0) cross = new Color(1f, 0.82f, 0.29f, 1f);
-            DrawRect(new Rect(w / 2 - 3, h / 2 - 3, 6, 6), cross);
+            float cs = 9 * u;
+            var cross = _flash > 0 ? new Color(1f, 0.82f, 0.29f, 1f) : new Color(0.92f, 0.94f, 0.96f, 0.85f);
+            DrawRect(new Rect(W / 2 - cs / 2, H / 2 - cs / 2, cs, cs), cross);
 
-            // counters
-            GUI.Label(new Rect(14, 10, 300, 24), $"Hits: {_hits}", _big);
-            GUI.Label(new Rect(14, 32, 300, 20), $"HP {Mathf.CeilToInt(p.Health)}   Energy {Mathf.CeilToInt(p.BuildEnergy)}", _small);
-            GUI.Label(new Rect(w - 150, 10, 140, 20), _runner.ShowTrajectory ? "arc: on" : "arc: off", _small);
+            // top-left: hits + bars
+            float pad = 22 * u, barW = 300 * u, barH = 24 * u, lblW = 90 * u;
+            GUI.Label(new Rect(pad, pad, 500 * u, 32 * u), $"Hits: {_hits}", _big);
+            float y = pad + 40 * u;
+            GUI.Label(new Rect(pad, y, lblW, barH), "HP", _small);
+            DrawBar(new Rect(pad + lblW, y, barW, barH), p.Health / _sim.Config.MaxHealth, new Color(1f, 0.36f, 0.32f));
+            y += barH + 8 * u;
+            GUI.Label(new Rect(pad, y, lblW, barH), "BUILD", _small);
+            DrawBar(new Rect(pad + lblW, y, barW, barH), p.BuildEnergy / _sim.Config.BuildMaxEnergy, new Color(0.37f, 0.69f, 1f));
 
-            // health + energy bars (top-left)
-            DrawBar(new Rect(14, 54, 180, 8), p.Health / _sim.Config.MaxHealth, new Color(1f, 0.36f, 0.32f));
-            DrawBar(new Rect(14, 66, 180, 8), p.BuildEnergy / _sim.Config.BuildMaxEnergy, new Color(0.37f, 0.69f, 1f));
+            // arc toggle indicator (top-right)
+            GUI.Label(new Rect(W - 180 * u, pad, 170 * u, 28 * u), _runner.ShowTrajectory ? "arc: on" : "arc: off", _small);
 
             // charge bar (bottom center) while charging
             if (p.Phase == AttackPhase.Charging && p.ChargeHeldTime > _sim.Config.TapMaxSeconds)
             {
                 float power = _sim.ChargePower(p.ChargeHeldTime);
-                var r = new Rect(w / 2 - 90, h - 70, 180, 10);
-                DrawRect(r, new Color(1f, 1f, 1f, 0.12f));
+                var r = new Rect(W / 2 - 130 * u, H - 90 * u, 260 * u, 16 * u);
+                DrawRect(r, new Color(1f, 1f, 1f, 0.15f));
                 DrawRect(new Rect(r.x, r.y, r.width * power, r.height), new Color(1f, 0.82f, 0.29f, 0.95f));
             }
 
-            // hit popup
-            if (_popTimer > 0) GUI.Label(new Rect(w / 2 - 100, h / 2 - 70, 200, 40), _popText, _pop);
+            if (_popTimer > 0) GUI.Label(new Rect(W / 2 - 150 * u, H / 2 - 90 * u, 300 * u, 60 * u), _popText, _pop);
+            if (!p.Alive) GUI.Label(new Rect(W / 2 - 150 * u, H / 2 + 40 * u, 300 * u, 34 * u), "respawning...", _pop);
 
-            // death banner
-            if (!p.Alive) GUI.Label(new Rect(w / 2 - 100, h / 2 + 30, 200, 24), "respawning...", _big);
-
-            if (_input != null && _input.IsTouch) DrawTouchControls();
-            else GUI.Label(new Rect(14, h - 24, w, 20), "WASD move · mouse look · LMB tap=jab hold=throw · Space jump · B build · R rotate · T arc", _small);
+            if (_input != null && _input.IsTouch) DrawTouchControls(u);
+            else GUI.Label(new Rect(pad, H - 30 * u, W, 26 * u),
+                "WASD move · mouse look · LMB tap=jab hold=throw · Space jump · B build · R rotate · T arc", _small);
         }
 
-        private void DrawTouchControls()
+        private void DrawTouchControls(float u)
         {
-            DrawButton(_input.AttackRect, "THROW\n/JAB", new Color(1f, 0.82f, 0.29f, 0.28f));
-            DrawButton(_input.JumpRect, "JUMP", new Color(0.37f, 0.69f, 1f, 0.18f));
-            DrawButton(_input.BuildRect, "BUILD", new Color(0.5f, 1f, 0.6f, 0.18f));
-            DrawButton(_input.RotateRect, "ROT", new Color(1f, 1f, 1f, 0.14f));
+            DrawButton(_input.AttackRect, "THROW\n/JAB", new Color(1f, 0.72f, 0.15f, 0.55f), u);
+            DrawButton(_input.JumpRect, "JUMP", new Color(0.30f, 0.62f, 1f, 0.50f), u);
+            DrawButton(_input.BuildRect, "BUILD", new Color(0.35f, 0.9f, 0.5f, 0.50f), u);
+            DrawButton(_input.RotateRect, "ROT", new Color(0.85f, 0.85f, 0.9f, 0.42f), u);
             if (_input.JoyActive)
             {
-                DrawCircle(ToGui(_input.JoyCenter), 55, new Color(1f, 1f, 1f, 0.10f));
-                DrawCircle(ToGui(_input.JoyKnob), 27, new Color(1f, 1f, 1f, 0.22f));
+                DrawCircle(ToGui(_input.JoyCenter), 55, new Color(1f, 1f, 1f, 0.12f));
+                DrawCircle(ToGui(_input.JoyKnob), 27, new Color(1f, 1f, 1f, 0.28f));
             }
         }
 
-        // ---- draw helpers (screen rects are y-up; GUI is y-down) ----
+        private void DrawButton(Rect screenRect, string label, Color fill, float u)
+        {
+            var g = ToGui(screenRect);
+            DrawRect(g, fill);
+            DrawBorder(g, new Color(1f, 1f, 1f, 0.85f), Mathf.Max(2f, 2.5f * u));
+            GUI.Label(g, label, _btn);
+        }
+
+        // ---- helpers (screen rects are y-up; GUI is y-down) ----
         private Vector2 ToGui(Vector2 screen) => new Vector2(screen.x, Screen.height - screen.y);
         private Rect ToGui(Rect r) => new Rect(r.x, Screen.height - r.y - r.height, r.width, r.height);
 
-        private void DrawButton(Rect screenRect, string label, Color c)
-        {
-            var g = ToGui(screenRect);
-            DrawRect(g, c);
-            GUI.Label(g, label, _small);
-        }
-
         private void DrawBar(Rect r, float t, Color c)
         {
-            DrawRect(r, new Color(1f, 1f, 1f, 0.12f));
+            DrawRect(r, new Color(0f, 0f, 0f, 0.45f));
             DrawRect(new Rect(r.x, r.y, r.width * Mathf.Clamp01(t), r.height), c);
+            DrawBorder(r, new Color(1f, 1f, 1f, 0.5f), 2f);
         }
 
         private void DrawCircle(Vector2 centerGui, float radius, Color c)
             => DrawRect(new Rect(centerGui.x - radius, centerGui.y - radius, radius * 2, radius * 2), c);
+
+        private void DrawBorder(Rect r, Color c, float t)
+        {
+            DrawRect(new Rect(r.x, r.y, r.width, t), c);
+            DrawRect(new Rect(r.x, r.yMax - t, r.width, t), c);
+            DrawRect(new Rect(r.x, r.y, t, r.height), c);
+            DrawRect(new Rect(r.xMax - t, r.y, t, r.height), c);
+        }
 
         private static Texture2D _px;
         private void DrawRect(Rect r, Color c)

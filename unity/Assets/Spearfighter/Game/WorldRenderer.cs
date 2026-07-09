@@ -103,7 +103,7 @@ namespace Spearfighter.Game
                     var mf = go.AddComponent<MeshFilter>();
                     var mr = go.AddComponent<MeshRenderer>();
                     mf.sharedMesh = MeshFactory.BuildRamp(b.Min, b.Max, b.RampAxis);
-                    mr.material = MakeMat(new Color(0.42f, 0.47f, 0.58f));
+                    mr.material = MakeMat(new Color(0.95f, 0.40f, 0.70f)); // placed build = pink
                     _builds[b.Id] = go;
                 }
             }
@@ -140,13 +140,13 @@ namespace Spearfighter.Game
             body.transform.SetParent(root.transform);
             body.transform.localPosition = new Vector3(0, 0.9f, 0);
             body.transform.localScale = new Vector3(0.9f, 0.75f, 0.9f);
-            SetColor(body, new Color(1f, 0.42f, 0.35f));
+            SetColor(body, new Color(0.95f, 0.30f, 0.62f)); // NPC = pink
             var head = GameObject.CreatePrimitive(PrimitiveType.Sphere);
             DestroyCollider(head);
             head.transform.SetParent(root.transform);
             head.transform.localPosition = new Vector3(0, 1.7f, 0);
             head.transform.localScale = Vector3.one * 0.55f;
-            SetColor(head, new Color(1f, 0.69f, 0.65f));
+            SetColor(head, new Color(1f, 0.55f, 0.78f)); // NPC head = lighter pink
             return root;
         }
 
@@ -155,9 +155,7 @@ namespace Spearfighter.Game
             var go = new GameObject("BuildGhost");
             go.AddComponent<MeshFilter>();
             var mr = go.AddComponent<MeshRenderer>();
-            var m = MakeMat(new Color(0.4f, 0.85f, 1f, 0.35f));
-            m.SetFloat("_Surface", 1f); // URP transparent, ignored elsewhere
-            mr.material = m;
+            mr.material = MakeMat(new Color(0.3f, 0.9f, 1f)); // ghost preview = cyan
             go.SetActive(false);
             return go;
         }
@@ -168,20 +166,8 @@ namespace Spearfighter.Game
             if (c != null) Destroy(c); // sim owns collision; Unity colliders are not used
         }
 
-        private static Material MakeMat(Color c)
-        {
-            Shader sh = Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard");
-            var m = new Material(sh);
-            SetMatColor(m, c);
-            return m;
-        }
+        private static Material MakeMat(Color c) => Mats.New(c);
 
-        private static void SetColor(GameObject go, Color c) => SetMatColor(go.GetComponent<Renderer>().material, c);
-
-        private static void SetMatColor(Material m, Color c)
-        {
-            if (m.HasProperty("_BaseColor")) m.SetColor("_BaseColor", c);
-            if (m.HasProperty("_Color")) m.SetColor("_Color", c);
-        }
+        private static void SetColor(GameObject go, Color c) => Mats.Apply(go, c);
     }
 }

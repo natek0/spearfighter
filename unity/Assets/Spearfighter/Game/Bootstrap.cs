@@ -23,6 +23,7 @@ namespace Spearfighter.Game
         {
             Application.targetFrameRate = 60;
             Screen.sleepTimeout = SleepTimeout.NeverSleep;
+            Screen.orientation = ScreenOrientation.LandscapeLeft; // FPS plays in landscape
 
             SimConfig cfg = config != null ? config.ToSimConfig() : SimConfig.Default();
             var sim = new SimCore(cfg, seed);
@@ -74,7 +75,7 @@ namespace Spearfighter.Game
             var col = go.GetComponent<UnityEngine.Collider>(); if (col != null) Destroy(col);
             go.transform.position = new Vector3(cx, cy, cz);
             go.transform.localScale = new Vector3(sx, sy, sz);
-            SetColor(go, new Color(0.28f, 0.32f, 0.39f));
+            SetColor(go, new Color(0.50f, 0.50f, 0.53f)); // arena structures = medium grey
         }
 
         private void BuildEnvironmentVisuals()
@@ -84,7 +85,7 @@ namespace Spearfighter.Game
             var col = ground.GetComponent<UnityEngine.Collider>(); if (col != null) Destroy(col);
             ground.transform.position = Vector3.zero;
             ground.transform.localScale = new Vector3(20, 1, 20); // plane is 10u => 200u
-            SetColor(ground, new Color(0.17f, 0.21f, 0.27f));
+            SetColor(ground, new Color(0.12f, 0.12f, 0.14f)); // ground = dark grey
 
             if (Object.FindObjectOfType<Light>() == null)
             {
@@ -110,17 +111,12 @@ namespace Spearfighter.Game
             }
             cam.fieldOfView = 74f;                       // prototype FOV
             cam.nearClipPlane = 0.1f;
-            cam.clearFlags = CameraClearFlags.SolidColor;
-            cam.backgroundColor = new Color(0.10f, 0.13f, 0.19f);
+            cam.clearFlags = CameraClearFlags.Skybox;              // blue gradient sky
+            cam.backgroundColor = new Color(0.30f, 0.52f, 0.80f);  // fallback blue if no skybox
             return cam;
         }
 
-        private static void SetColor(GameObject go, Color c)
-        {
-            var m = go.GetComponent<Renderer>().material;
-            if (m.HasProperty("_BaseColor")) m.SetColor("_BaseColor", c);
-            if (m.HasProperty("_Color")) m.SetColor("_Color", c);
-        }
+        private static void SetColor(GameObject go, Color c) => Mats.Apply(go, c);
 
 #if UNITY_EDITOR
         [MenuItem("Spearfighter/Create Play Scene")]
