@@ -40,5 +40,23 @@ namespace Spearfighter.Game
             var r = go.GetComponent<Renderer>();
             if (r != null) r.material = New(c);
         }
+
+        /// <summary>A translucent URP material (for the build ghost). Alpha comes from c.a.</summary>
+        public static Material NewTransparent(Color c)
+        {
+            var m = New(c);
+            // URP Lit transparent setup
+            m.SetFloat("_Surface", 1f);   // 0 = Opaque, 1 = Transparent
+            m.SetFloat("_Blend", 0f);     // 0 = Alpha
+            m.SetFloat("_ZWrite", 0f);
+            m.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
+            m.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
+            m.renderQueue = (int)UnityEngine.Rendering.RenderQueue.Transparent;
+            m.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
+            m.DisableKeyword("_ALPHATEST_ON");
+            if (m.HasProperty("_BaseColor")) m.SetColor("_BaseColor", c);
+            if (m.HasProperty("_Color")) m.SetColor("_Color", c);
+            return m;
+        }
     }
 }

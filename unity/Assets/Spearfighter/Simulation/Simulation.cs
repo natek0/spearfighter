@@ -18,7 +18,7 @@ namespace Spearfighter.Simulation
     public sealed class SimCore
     {
         public readonly SimConfig Config;
-        public readonly CollisionWorld World = new CollisionWorld();
+        public readonly VoxelWorld World = new VoxelWorld();
         public readonly List<PlayerState> Players = new List<PlayerState>();
         public readonly List<BuildState> Builds = new List<BuildState>();
         public SpearState[] Spears;
@@ -41,6 +41,8 @@ namespace Spearfighter.Simulation
             Config = config ?? SimConfig.Default();
             _rng = new Rng(seed);
             Spears = new SpearState[Config.MaxSpears];
+            World.CellSize = Config.CellSize;
+            World.StepHeight = Config.StepHeight;
         }
 
         // ---- setup ----
@@ -61,7 +63,7 @@ namespace Spearfighter.Simulation
             return p;
         }
 
-        public void AddStaticBox(Vector3 min, Vector3 max) => World.Add(Collider.Box(min, max));
+        public void AddStaticBox(Vector3 min, Vector3 max) => World.AddStaticBox(min, max);
 
         // ---- main step ----
 
@@ -98,40 +100,39 @@ namespace Spearfighter.Simulation
             p.Yaw -= cmd.LookYawDelta * sens;
             p.Pitch = SimMath.ClampPitch(p.Pitch - cmd.LookPitchDelta * sens);
 
-            // ----- planar movement -----
+            // ----- build the tick's displacement -----
             Vector3 fwd = SimMath.PlanarForward(p.Yaw);
             Vector3 right = SimMath.PlanarRight(p.Yaw);
             Vector3 move = fwd * cmd.Move.Y + right * cmd.Move.X;
+            Vector3 disp = Vector3.Zero;
             if (move.LengthSquared() > 1e-6f)
             {
                 move = SimMath.NormalizeSafe(move) * (Config.MoveSpeed * dt);
-                p.Feet.X += move.X;
-                p.Feet.Z += move.Z;
+                disp.X = move.X;
+                disp.Z = move.Z;
             }
 
-            // resolve against walls after horizontal move
-            World.ResolveBody(ref p.Feet, Config.PlayerRadius, Config.EyeHeight);
-
-            // ----- jump + gravity -----
             if (cmd.JumpHeld && !prev.JumpHeld && p.Grounded)
             {
                 p.VelocityY = Config.JumpSpeed;
                 p.Grounded = false;
             }
             p.VelocityY += Config.Gravity * dt;
-            p.Feet.Y += p.VelocityY * dt;
+            disp.Y = p.VelocityY * dt;
 
-            // ----- ground / ramp support -----
-            float support = World.SupportHeight(p.Feet.X, p.Feet.Z, p.Feet.Y);
-            if (p.Feet.Y <= support + 0.25f && p.VelocityY <= 0f)
+            // ----- voxel swept-AABB controller (walls / walk-up / jump-over) -----
+            World.MoveBody(ref p.Feet, Config.PlayerRadius, Config.PlayerHeight, disp,
+                out bool grounded, out bool ceiling, out float stepGain);
+            if (grounded) { p.VelocityY = 0f; p.Grounded = true; }
+            else p.Grounded = false;
+            if (ceiling && p.VelocityY > 0f) p.VelocityY = 0f;
+
+            // eased step-up: raise the logical feet instantly, ease the visual eye
+            if (stepGain > 0f) p.StepEaseOffset += stepGain;
+            if (p.StepEaseOffset > 0f)
             {
-                p.Feet.Y = support;
-                p.VelocityY = 0f;
-                p.Grounded = true;
-            }
-            else
-            {
-                p.Grounded = false;
+                p.StepEaseOffset -= p.StepEaseOffset * SimMath.Clamp01(dt / Config.StepEaseSeconds);
+                if (p.StepEaseOffset < 0.001f) p.StepEaseOffset = 0f;
             }
 
             // ----- attack charge FSM (tap = jab, hold = charge & throw) -----
@@ -259,14 +260,19 @@ namespace Spearfighter.Simulation
             }
         }
 
-        // ---- building (Phase 1) ----
+        // ---- building (Phase 1) — voxel staircase, hold-to-preview ----
+
+        private readonly List<Cell> _buildScratch = new List<Cell>();
 
         private void StepBuilding(PlayerState p, InputCommand cmd, InputCommand prev, float dt)
         {
+            p.IsBuildPreviewing = cmd.BuildHeld;
+
             if (cmd.RotateBuildHeld && !prev.RotateBuildHeld)
                 p.BuildRotationSteps = (p.BuildRotationSteps + 1) & 3;
 
-            if (cmd.BuildHeld && !prev.BuildHeld)
+            // hold-to-preview: place on RELEASE (a quick tap still fires once on release)
+            if (!cmd.BuildHeld && prev.BuildHeld)
                 TryPlaceBuild(p);
 
             if (p.BuildEnergy < Config.BuildMaxEnergy)
@@ -274,10 +280,18 @@ namespace Spearfighter.Simulation
                     p.BuildEnergy + Config.BuildEnergyRegenPerSec * dt);
         }
 
-        /// <summary>Compute the ghost/ramp footprint for a builder without placing it (used by the ghost preview too).</summary>
-        public bool TryGetBuildPlacement(PlayerState p, out Vector3 min, out Vector3 max, out int axis)
+        /// <summary>
+        /// Compute the world voxel cells the default build would occupy from the
+        /// player's aim, without placing them (used by the ghost preview too). The
+        /// staircase rises AWAY from the player so you can walk straight up it;
+        /// RotateBuild offsets the facing in 90-degree steps. Returns a shared
+        /// scratch list — consume it before the next call.
+        /// </summary>
+        public bool TryGetBuildPlacement(PlayerState p, out List<Cell> cells)
         {
-            min = max = Vector3.Zero; axis = 1;
+            cells = _buildScratch;
+            cells.Clear();
+
             Vector3 eye = p.EyePosition(Config.EyeHeight);
             Vector3 dir = SimMath.NormalizeSafe(SimMath.Forward(p.Yaw, p.Pitch));
             if (!World.AimGroundPoint(eye, dir, World.GroundHeight, out Vector3 ground)) return false;
@@ -288,61 +302,78 @@ namespace Spearfighter.Simulation
             if (d > Config.BuildReach)
                 ground = new Vector3(p.Feet.X, World.GroundHeight, p.Feet.Z) + flat * (Config.BuildReach / d);
 
-            // grid snap
-            float g = Config.BuildGridSize;
-            float cx = System.MathF.Round(ground.X / g) * g;
-            float cz = System.MathF.Round(ground.Z / g) * g;
+            float cs = Config.CellSize;
+            int ox = (int)System.MathF.Floor(ground.X / cs);
+            int oz = (int)System.MathF.Floor(ground.Z / cs);
+            int oy = (int)System.MathF.Floor(World.GroundHeight / cs);
 
-            // Default the ramp to rise AWAY from the player (low edge nearest you) so
-            // you can walk straight up it; RotateBuild offsets this in 90-degree steps.
-            Vector3 f = SimMath.PlanarForward(p.Yaw);
-            int baseSteps;
-            if (System.MathF.Abs(f.Z) >= System.MathF.Abs(f.X)) baseSteps = f.Z >= 0f ? 0 : 2;
-            else baseSteps = f.X >= 0f ? 1 : 3;
-            int steps = (baseSteps + p.BuildRotationSteps) & 3;
+            // facing → up-slope cell direction, plus a perpendicular width direction
+            (int dx, int dz) = DominantDir(SimMath.PlanarForward(p.Yaw), p.BuildRotationSteps);
+            int px = dz, pz = dx;
 
-            bool swapped = (steps & 1) == 1;
-            float halfX = (swapped ? Config.RampLength : Config.RampWidth) * 0.5f;
-            float halfZ = (swapped ? Config.RampWidth : Config.RampLength) * 0.5f;
-            min = new Vector3(cx - halfX, World.GroundHeight, cz - halfZ);
-            max = new Vector3(cx + halfX, World.GroundHeight + Config.RampHeight, cz + halfZ);
-            axis = RotationToAxis(steps);
+            for (int r = 0; r < Config.BuildRunLength; r++)
+                for (int y = 0; y <= r; y++)
+                    for (int w = 0; w < Config.BuildWidth; w++)
+                        cells.Add(new Cell(ox + dx * r + px * w, oy + y, oz + dz * r + pz * w));
             return true;
         }
 
-        private static int RotationToAxis(int steps)
+        /// <summary>Dominant cardinal facing (±X/±Z), rotated by 90-degree build steps.</summary>
+        private static (int dx, int dz) DominantDir(Vector3 f, int rot)
         {
-            // 0 -> rises +Z, 1 -> +X, 2 -> -Z, 3 -> -X
-            switch (steps & 3) { case 0: return 1; case 1: return 0; case 2: return 3; default: return 2; }
+            int dx, dz;
+            if (System.MathF.Abs(f.Z) >= System.MathF.Abs(f.X)) { dx = 0; dz = f.Z >= 0f ? 1 : -1; }
+            else { dz = 0; dx = f.X >= 0f ? 1 : -1; }
+            for (int i = 0; i < (rot & 3); i++) { int ndx = dz, ndz = -dx; dx = ndx; dz = ndz; }
+            return (dx, dz);
         }
 
-        public bool CanPlaceBuild(PlayerState p, Vector3 min, Vector3 max)
+        public bool CanPlaceBuild(PlayerState p, List<Cell> cells)
         {
             if (p.BuildEnergy < Config.BuildCostPerPlace) return false;
-            // don't bury a player inside the new build
+            float cs = Config.CellSize;
+            // don't bury any living player inside the new build
             for (int i = 0; i < Players.Count; i++)
             {
                 var q = Players[i];
                 if (!q.Alive) continue;
-                if (q.Feet.X >= min.X && q.Feet.X <= max.X && q.Feet.Z >= min.Z && q.Feet.Z <= max.Z
-                    && q.Feet.Y < max.Y - 0.1f)
-                    return false;
+                Vector3 pmin = new Vector3(q.Feet.X - Config.PlayerRadius, q.Feet.Y, q.Feet.Z - Config.PlayerRadius);
+                Vector3 pmax = new Vector3(q.Feet.X + Config.PlayerRadius, q.Feet.Y + Config.PlayerHeight, q.Feet.Z + Config.PlayerRadius);
+                for (int c = 0; c < cells.Count; c++)
+                {
+                    var cell = cells[c];
+                    Vector3 cmin = new Vector3(cell.X * cs, cell.Y * cs, cell.Z * cs);
+                    Vector3 cmax = new Vector3((cell.X + 1) * cs, (cell.Y + 1) * cs, (cell.Z + 1) * cs);
+                    if (pmin.X < cmax.X && pmax.X > cmin.X && pmin.Y < cmax.Y && pmax.Y > cmin.Y &&
+                        pmin.Z < cmax.Z && pmax.Z > cmin.Z)
+                        return false;
+                }
             }
             return true;
         }
 
         private void TryPlaceBuild(PlayerState p)
         {
-            if (!TryGetBuildPlacement(p, out var min, out var max, out var axis)) return;
-            if (!CanPlaceBuild(p, min, max)) return;
+            if (!TryGetBuildPlacement(p, out var cells)) return;
+            if (!CanPlaceBuild(p, cells)) return;
 
             int id = _nextBuildId++;
-            World.Add(Collider.Ramp(min, max, axis, id));
-            Builds.Add(new BuildState { Id = id, OwnerId = p.Id, Min = min, Max = max, RampAxis = axis });
+            var arr = cells.ToArray();
+            World.AddBuild(id, arr);
+            Builds.Add(new BuildState { Id = id, OwnerId = p.Id, Cells = arr });
             p.BuildEnergy -= Config.BuildCostPerPlace;
-            Emit(SimEventType.BuildPlaced, p.Id, position: (min + max) * 0.5f);
+            Emit(SimEventType.BuildPlaced, p.Id, position: BuildCenter(arr));
 
             EnforceBuildCap(p.Id);
+        }
+
+        private Vector3 BuildCenter(Cell[] cells)
+        {
+            if (cells.Length == 0) return Vector3.Zero;
+            Vector3 sum = Vector3.Zero;
+            float cs = Config.CellSize;
+            foreach (var c in cells) sum += new Vector3((c.X + 0.5f) * cs, (c.Y + 0.5f) * cs, (c.Z + 0.5f) * cs);
+            return sum / cells.Length;
         }
 
         private void EnforceBuildCap(int ownerId)
@@ -356,11 +387,9 @@ namespace Spearfighter.Simulation
                 {
                     if (Builds[i].OwnerId == ownerId)
                     {
-                        int evictId = Builds[i].Id;
-                        Vector3 c = (Builds[i].Min + Builds[i].Max) * 0.5f;
-                        World.RemoveByBuildId(evictId);
+                        World.RemoveBuild(Builds[i].Id);
+                        Emit(SimEventType.BuildEvicted, ownerId, position: BuildCenter(Builds[i].Cells));
                         Builds.RemoveAt(i);
-                        Emit(SimEventType.BuildEvicted, ownerId, position: c);
                         break;
                     }
                 }

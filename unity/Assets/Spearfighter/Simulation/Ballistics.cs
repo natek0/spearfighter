@@ -18,7 +18,7 @@ namespace Spearfighter.Simulation
         /// </summary>
         public static int PredictPath(
             Vector3 origin, Vector3 velocity, float gravity, float stepDt,
-            CollisionWorld world, float groundY, Vector3[] points)
+            VoxelWorld world, float groundY, Vector3[] points)
         {
             Vector3 p = origin;
             Vector3 v = velocity;

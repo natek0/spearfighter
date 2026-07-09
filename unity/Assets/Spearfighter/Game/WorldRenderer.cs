@@ -52,7 +52,9 @@ namespace Spearfighter.Game
         private void RenderCamera()
         {
             var p = _sim.Players[_localIndex];
-            _camera.transform.position = p.EyePosition(_cfg.EyeHeight).ToUnity();
+            var eye = p.EyePosition(_cfg.EyeHeight).ToUnity();
+            eye.y -= p.StepEaseOffset; // eased step-up: visual eye lags then catches up
+            _camera.transform.position = eye;
             // Sim forward at yaw=0 is world -Z; a Unity camera looks down +Z, so the
             // yaw needs a 180deg offset for the camera to face where spears actually go.
             _camera.transform.rotation = Quaternion.Euler(-p.Pitch * Mathf.Rad2Deg, p.Yaw * Mathf.Rad2Deg + 180f, 0f);
@@ -102,7 +104,7 @@ namespace Spearfighter.Game
                     var go = new GameObject($"Build{b.Id}");
                     var mf = go.AddComponent<MeshFilter>();
                     var mr = go.AddComponent<MeshRenderer>();
-                    mf.sharedMesh = MeshFactory.BuildRamp(b.Min, b.Max, b.RampAxis);
+                    mf.sharedMesh = MeshFactory.BuildVoxels(b.Cells, _cfg.CellSize);
                     mr.material = MakeMat(new Color(0.95f, 0.40f, 0.70f)); // placed build = pink
                     _builds[b.Id] = go;
                 }
@@ -119,14 +121,14 @@ namespace Spearfighter.Game
         private void RenderGhost()
         {
             var p = _sim.Players[_localIndex];
-            if (p != null && p.Alive &&
-                _sim.TryGetBuildPlacement(p, out var min, out var max, out var axis) &&
-                _sim.CanPlaceBuild(p, min, max))
+            // hold-to-preview: only show the ghost while the BUILD button is held
+            if (p != null && p.Alive && p.IsBuildPreviewing &&
+                _sim.TryGetBuildPlacement(p, out var cells))
             {
                 _ghost.SetActive(true);
                 var mf = _ghost.GetComponent<MeshFilter>();
                 if (mf.mesh != null) Destroy(mf.mesh);
-                mf.mesh = MeshFactory.BuildRamp(min, max, axis);
+                mf.mesh = MeshFactory.BuildVoxels(cells, _cfg.CellSize);
             }
             else _ghost.SetActive(false);
         }
@@ -155,7 +157,7 @@ namespace Spearfighter.Game
             var go = new GameObject("BuildGhost");
             go.AddComponent<MeshFilter>();
             var mr = go.AddComponent<MeshRenderer>();
-            mr.material = MakeMat(new Color(0.3f, 0.9f, 1f)); // ghost preview = cyan
+            mr.material = Mats.NewTransparent(new Color(0.35f, 0.9f, 1f, 0.35f)); // ghost = translucent cyan
             go.SetActive(false);
             return go;
         }

@@ -51,13 +51,18 @@ namespace Spearfighter.Game
 
         public void RecomputeRects()
         {
-            float w = Screen.width, h = Screen.height;
-            float s = Mathf.Min(w, h);
-            float d = s * 0.16f;
-            AttackRect = new Rect(w - d * 1.15f, h - d * 1.25f, d, d);
-            JumpRect   = new Rect(w - d * 2.35f, h - d * 1.05f, d * 0.72f, d * 0.72f);
-            BuildRect  = new Rect(w - d * 1.15f, h - d * 2.5f, d * 0.72f, d * 0.72f);
-            RotateRect = new Rect(w - d * 2.1f, h - d * 2.15f, d * 0.6f, d * 0.6f);
+            // Screen.safeArea is in pixels, y measured from the BOTTOM (screen y-up).
+            // Anchor the thumb buttons to the bottom-right of the safe area.
+            Rect sa = Screen.safeArea;
+            float s = Mathf.Min(sa.width, sa.height);
+            float d = s * 0.17f;   // attack button diameter
+            float m = s * 0.03f;   // margin
+            float right = sa.xMax;
+            float bottom = sa.yMin;
+            AttackRect = new Rect(right - d - m,               bottom + m,             d,       d);
+            JumpRect   = new Rect(right - d - m - d * 0.8f - m, bottom + m,             d * 0.75f, d * 0.75f);
+            BuildRect  = new Rect(right - d - m,               bottom + m + d + m,     d * 0.75f, d * 0.75f);
+            RotateRect = new Rect(right - d - m - d * 0.8f - m, bottom + m + d + m,     d * 0.65f, d * 0.65f);
         }
 
         /// <summary>Accumulate raw input for this frame. Called every Update before ticking.</summary>

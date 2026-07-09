@@ -24,7 +24,13 @@ namespace Spearfighter.Simulation
         public float MoveSpeed = 6.0f;         // MOVE_SPEED (m/s)
         public float Gravity = -22.0f;         // GRAVITY (player)
         public float JumpSpeed = 8.0f;         // JUMP_SPEED
-        public float PlayerRadius = 0.45f;     // PLAYER_RADIUS (capsule radius)
+        public float PlayerRadius = 0.45f;     // half-width of the player collision box
+
+        // ---- voxel collision / character controller ----
+        public float PlayerHeight = 1.8f;      // full height of the player collision box
+        public float StepHeight = 0.55f;       // auto-climb threshold (>= one cell)
+        public float StepEaseSeconds = 0.08f;  // smooth the visual rise after a step-up
+        public float CellSize = 0.5f;          // world voxel grid cell size
 
         // ---- attack / charge (prototype) ----
         public float TapMaxSeconds = 0.15f;    // TAP_MAX: hold shorter than this => jab
@@ -51,16 +57,14 @@ namespace Spearfighter.Simulation
         public int TrajectoryMaxPoints = 60;   // TRAJ_MAX
         public float TrajectoryStepDt = 0.045f;// prototype preview integration step
 
-        // ---- Phase 1: building (NEW — needs on-device tuning) ----
+        // ---- Phase 1: building (voxel staircase; NEW — needs on-device tuning) ----
         public float BuildMaxEnergy = 100f;
         public float BuildEnergyRegenPerSec = 20f;
-        public float BuildCostPerPlace = 34f;   // ~3 builds before empty; regens in ~5s
+        public float BuildCostPerPlace = 34f;    // ~3 builds before empty; regens in ~5s
         public int MaxSimultaneousBuilds = 6;    // oldest despawns past this (also perf bound)
         public float BuildReach = 8f;            // max place distance from the player
-        public float BuildGridSize = 1.0f;       // placement snap
-        public float RampWidth = 2.0f;           // footprint X (before rotation)
-        public float RampLength = 3.0f;          // footprint Z (run of the slope)
-        public float RampHeight = 1.9f;          // ~1 player-height walkable rise
+        public int BuildRunLength = 4;           // default staircase: steps up-slope (cells)
+        public int BuildWidth = 2;               // default staircase: width (cells)
 
         // ---- Phase 1: bot (NEW — needs tuning) ----
         public float BotPreferredRange = 12f;    // holds spear range

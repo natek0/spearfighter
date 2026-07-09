@@ -79,24 +79,28 @@ namespace Spearfighter.Game
             var cross = _flash > 0 ? new Color(1f, 0.82f, 0.29f, 1f) : new Color(0.92f, 0.94f, 0.96f, 0.85f);
             DrawRect(new Rect(W / 2 - cs / 2, H / 2 - cs / 2, cs, cs), cross);
 
-            // top-left: hits + bars
-            float pad = 22 * u, barW = 300 * u, barH = 24 * u, lblW = 90 * u;
-            GUI.Label(new Rect(pad, pad, 500 * u, 32 * u), $"Hits: {_hits}", _big);
-            float y = pad + 40 * u;
-            GUI.Label(new Rect(pad, y, lblW, barH), "HP", _small);
-            DrawBar(new Rect(pad + lblW, y, barW, barH), p.Health / _sim.Config.MaxHealth, new Color(1f, 0.36f, 0.32f));
+            // top-left cluster, inside the safe area so nothing clips the notch
+            Rect sa = Screen.safeArea;
+            float padX = sa.xMin + 22 * u;
+            float padY = (H - sa.yMax) + 22 * u;   // GUI is y-down; sa.yMax is the top
+            float safeBottom = H - sa.yMin;        // GUI-space y of the safe-area bottom
+            float barW = 300 * u, barH = 24 * u, lblW = 90 * u;
+            GUI.Label(new Rect(padX, padY, 500 * u, 32 * u), $"Hits: {_hits}", _big);
+            float y = padY + 40 * u;
+            GUI.Label(new Rect(padX, y, lblW, barH), "HP", _small);
+            DrawBar(new Rect(padX + lblW, y, barW, barH), p.Health / _sim.Config.MaxHealth, new Color(1f, 0.36f, 0.32f));
             y += barH + 8 * u;
-            GUI.Label(new Rect(pad, y, lblW, barH), "BUILD", _small);
-            DrawBar(new Rect(pad + lblW, y, barW, barH), p.BuildEnergy / _sim.Config.BuildMaxEnergy, new Color(0.37f, 0.69f, 1f));
+            GUI.Label(new Rect(padX, y, lblW, barH), "BUILD", _small);
+            DrawBar(new Rect(padX + lblW, y, barW, barH), p.BuildEnergy / _sim.Config.BuildMaxEnergy, new Color(0.37f, 0.69f, 1f));
 
-            // arc toggle indicator (top-right)
-            GUI.Label(new Rect(W - 180 * u, pad, 170 * u, 28 * u), _runner.ShowTrajectory ? "arc: on" : "arc: off", _small);
+            // arc toggle indicator (top-right, inside safe area)
+            GUI.Label(new Rect(sa.xMax - 190 * u, padY, 170 * u, 28 * u), _runner.ShowTrajectory ? "arc: on" : "arc: off", _small);
 
             // charge bar (bottom center) while charging
             if (p.Phase == AttackPhase.Charging && p.ChargeHeldTime > _sim.Config.TapMaxSeconds)
             {
                 float power = _sim.ChargePower(p.ChargeHeldTime);
-                var r = new Rect(W / 2 - 130 * u, H - 90 * u, 260 * u, 16 * u);
+                var r = new Rect(W / 2 - 130 * u, safeBottom - 90 * u, 260 * u, 16 * u);
                 DrawRect(r, new Color(1f, 1f, 1f, 0.15f));
                 DrawRect(new Rect(r.x, r.y, r.width * power, r.height), new Color(1f, 0.82f, 0.29f, 0.95f));
             }
@@ -105,8 +109,8 @@ namespace Spearfighter.Game
             if (!p.Alive) GUI.Label(new Rect(W / 2 - 150 * u, H / 2 + 40 * u, 300 * u, 34 * u), "respawning...", _pop);
 
             if (_input != null && _input.IsTouch) DrawTouchControls(u);
-            else GUI.Label(new Rect(pad, H - 30 * u, W, 26 * u),
-                "WASD move · mouse look · LMB tap=jab hold=throw · Space jump · B build · R rotate · T arc", _small);
+            else GUI.Label(new Rect(padX, safeBottom - 30 * u, W, 26 * u),
+                "WASD move · mouse look · LMB tap=jab hold=throw · Space jump · B build (hold to aim) · R rotate · T arc", _small);
         }
 
         private void DrawTouchControls(float u)

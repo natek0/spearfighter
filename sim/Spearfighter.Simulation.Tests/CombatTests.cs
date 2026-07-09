@@ -107,7 +107,7 @@ namespace Spearfighter.Simulation.Tests
         public void PredictPath_MatchesActualSpearIntegration_WithSameStep()
         {
             var cfg = SimConfig.Default();
-            var world = new CollisionWorld();
+            var world = new VoxelWorld();
             Vector3 origin = new Vector3(0, 1.6f, 0);
             Vector3 vel = new Vector3(0, 3f, -20f);
 

@@ -23,6 +23,12 @@ namespace Spearfighter.Game
         public float jumpSpeed = 8.0f;
         public float playerRadius = 0.45f;
 
+        [Header("Voxel collision / controller")]
+        public float playerHeight = 1.8f;
+        public float stepHeight = 0.55f;
+        public float stepEaseSeconds = 0.08f;
+        public float cellSize = 0.5f;
+
         [Header("Attack / charge (prototype)")]
         public float tapMaxSeconds = 0.15f;
         public float chargeFullSeconds = 1.15f;
@@ -46,16 +52,14 @@ namespace Spearfighter.Game
         public int trajectoryMaxPoints = 60;
         public float trajectoryStepDt = 0.045f;
 
-        [Header("Building (Phase 1 — tune on device)")]
+        [Header("Building (voxel staircase — tune on device)")]
         public float buildMaxEnergy = 100f;
         public float buildEnergyRegenPerSec = 20f;
         public float buildCostPerPlace = 34f;
         public int maxSimultaneousBuilds = 6;
         public float buildReach = 8f;
-        public float buildGridSize = 1.0f;
-        public float rampWidth = 2.0f;
-        public float rampLength = 3.0f;
-        public float rampHeight = 1.9f;
+        public int buildRunLength = 4;
+        public int buildWidth = 2;
 
         [Header("Bot (Phase 1 — tune)")]
         public float botPreferredRange = 12f;
@@ -71,6 +75,8 @@ namespace Spearfighter.Game
                 TickRate = tickRate,
                 EyeHeight = eyeHeight, MoveSpeed = moveSpeed, Gravity = gravity,
                 JumpSpeed = jumpSpeed, PlayerRadius = playerRadius,
+                PlayerHeight = playerHeight, StepHeight = stepHeight,
+                StepEaseSeconds = stepEaseSeconds, CellSize = cellSize,
                 TapMaxSeconds = tapMaxSeconds, ChargeFullSeconds = chargeFullSeconds,
                 ThrowSpeedMin = throwSpeedMin, ThrowSpeedMax = throwSpeedMax,
                 SpearGravity = spearGravity, JabRange = jabRange, JabHalfAngleDeg = jabHalfAngleDeg,
@@ -81,8 +87,7 @@ namespace Spearfighter.Game
                 TrajectoryMaxPoints = trajectoryMaxPoints, TrajectoryStepDt = trajectoryStepDt,
                 BuildMaxEnergy = buildMaxEnergy, BuildEnergyRegenPerSec = buildEnergyRegenPerSec,
                 BuildCostPerPlace = buildCostPerPlace, MaxSimultaneousBuilds = maxSimultaneousBuilds,
-                BuildReach = buildReach, BuildGridSize = buildGridSize,
-                RampWidth = rampWidth, RampLength = rampLength, RampHeight = rampHeight,
+                BuildReach = buildReach, BuildRunLength = buildRunLength, BuildWidth = buildWidth,
                 BotPreferredRange = botPreferredRange, BotRangeTolerance = botRangeTolerance,
                 BotReactionSeconds = botReactionSeconds, BotChargeSeconds = botChargeSeconds,
                 BotBuildChance = botBuildChance,
