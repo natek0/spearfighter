@@ -10,7 +10,8 @@ Legend: 🐞 = bug fix · ✨ = feature · 🧱 = foundation/refactor · 🕓 = 
 ---
 
 ## Priority order (recommended)
-1. 🐞 **Ramp traversal** — blocks the core build-for-verticality loop. Highest priority.
+1. 🧱 **Collision & controller rewrite (voxel swept-AABB + eased step-up)** — foundational;
+   replaces the special-cased ramp and defines the build coordinate system. Highest priority.
 2. 🐞 **HUD safe-area + button placement** — quick, high daily-annoyance payoff.
 3. ✨ **Build placement preview UX** — remove the always-on ghost; show intent-driven preview. *(needs your decision — see Decisions)*
 4. ✨ **First-person viewmodel (arms + held spear) + off-center arc origin** — fixes the "orange circle," makes the aim arc usable, foundation for skins. *(needs your decision)*
@@ -18,47 +19,81 @@ Legend: 🐞 = bug fix · ✨ = feature · 🧱 = foundation/refactor · 🕓 = 
 
 ---
 
-## 1. 🐞 Ramp traversal (walk up the ramp)
+## 1. 🧱 Collision & character controller rewrite — voxel swept-AABB + eased step-up
 
-**Symptom:** the ramp behaves like a wall; you can't walk up it.
+**DECISION (locked):** voxel swept-AABB collision with auto step-up, eased vertically.
+This REPLACES the special-cased box/ramp collider (`CollisionWorld`) and defines the
+coordinate system all builds (default + player-authored) use. Walking up a ramp,
+jumping over a wall, and being blocked all become *emergent* from one general rule set,
+not per-shape code.
 
-**Root cause:** `CollisionWorld.ResolveBody` (in `unity/Assets/Spearfighter/Simulation/CollisionWorld.cs`).
-For a ramp it only skips the horizontal push-out when the player's **center** is inside
-the footprint *and* at/above the slope surface. When the player approaches the low
-edge, their center is still just **outside** the footprint but their capsule radius
-(0.45 m) overlaps it → the code runs the circle-vs-AABB push and shoves them back by
-up to a full radius. They can never get their center onto the low edge, so the whole
-ramp reads as a wall.
+### 1a. Coordinate system (the foundation)
+- **World voxel grid**, cell size `CellSize` (new `SimConfig`, default 0.5 m).
+- Every solid thing is a set of **solid cells** (unit AABBs in world space). Arena
+  walls/pillars can stay as a few coarse static AABBs; **builds are solid cells**.
+- A build = a **local voxel bitmask** (e.g. 8×8×8) + a **world origin cell** + a
+  **rotation (0..3, 90°)**. Placing maps local solid cells → world cells; removing
+  clears them. This is deterministic and **server-reconstructable** (send the bitmask;
+  server rebuilds identical cells) — exactly what the voxel editor (WS4) and netcode
+  (WS10) need. The collision coord system *is* the build-authoring coord system.
+- The **default ramp is a predefined voxel staircase** pattern (rise ≤ `StepHeight` per
+  run). Custom builds are arbitrary patterns. Same code path.
 
-**Fix (specific):** in `ResolveBody`, for a ramp compute the slope surface height at
-the **closest footprint point to the player** (not the player's center), and only push
-out when that surface is **above `feet.Y + StepTolerance`** (i.e., a genuine wall from
-the player's current height). Where the ramp is low (near the base), do **not** push —
-let the player walk in; `SupportHeight` then lifts them up the slope each tick.
+### 1b. Player representation
+- Axis-aligned box: footprint half-width = `PlayerRadius`, height = `PlayerHeight`
+  (new config; eye = feet + `EyeHeight`). It does **not** rotate (camera yaws only).
+- (Optional later: round the footprint to a cylinder if corners feel catchy. Start box.)
 
-Sketch:
-```
-// inside ResolveBody, per ramp collider:
-float cx = Clamp(feet.X, Min.X, Max.X);
-float cz = Clamp(feet.Z, Min.Z, Max.Z);
-float surfHere = SurfaceHeight(cx, cz);          // slope height at nearest point
-if (surfHere <= feet.Y + StepTolerance) continue; // low/walkable → no wall push
-// else: treat as wall → existing circle-vs-AABB push-out
-```
-Keep the existing box (wall/pillar) path unchanged.
+### 1c. Controller algorithm (per fixed tick), replacing the movement/support code
+1. Desired displacement: horizontal from move input, vertical from `velocityY`.
+2. **Per-axis swept resolution** (substep if a component > ~0.5·CellSize to prevent
+   tunnelling): move X → clamp to first solid contact; move Z → clamp; move Y → clamp
+   (down-contact ⇒ grounded, velY=0; up-contact ⇒ bonk, velY=0).
+3. **Auto step-up:** if a horizontal axis got blocked while grounded, try raising the
+   box by up to `StepHeight`, re-attempt the move; if it clears and ground is within
+   `StepHeight` below, accept it (record the height gained); else revert. Voxel
+   staircase ⇒ this climbs it. A wall taller than `StepHeight` stays a wall.
+4. **Eased step-up:** don't snap the eye up. Track a decaying `stepOffset`; logical feet
+   go up immediately (collision correct), but the *rendered* eye rises over
+   `StepEaseSeconds` (~0.08 s) so it feels like a ramp, not a teleport.
+5. **Grounded/jump:** grounded = small downward probe hits a solid top. Jump sets velY;
+   **jump-over emerges** — apex vs obstacle top decides if you clear it. Thresholds:
+   `StepHeight` = auto-climb, jump apex = max hop-over, taller = wall. Tuning jump later
+   directly controls what's vaultable.
 
-**Also:** raise `StepTolerance` slightly if needed (currently 0.35 m) and verify
-`SupportHeight` snap distance so climbing is smooth, not steppy.
+### 1d. New/changed config (`SimConfig`)
+`CellSize` (0.5), `PlayerHeight` (~1.8), `StepHeight` (~0.55), `StepEaseSeconds` (0.08).
+No slope-limit needed (boxes ⇒ steepness is step-vs-wall via `StepHeight`).
 
-**New test (must add):** `PlayerWalksUpRampFromGroundViaMovement` in
-`sim/.../BuildMovementTests.cs` — place the player on flat ground a couple metres in
-front of a ramp's low edge, feed `Move = (0,1)` for ~120 ticks, assert `feet.Y` climbs
-to near the ramp top and the player is not stuck at the base. (The current test only
-drops the player *onto* the ramp; it never exercised walking *up*, which is why this
-slipped through.)
+### 1e. Ripples (files to change)
+- `CollisionWorld.cs` → **`VoxelWorld`**: solid-cell set (spatial hash keyed by cell
+  coord) + a few static arena AABBs; broadphase = cells overlapping the swept player box.
+  Remove `SurfaceHeight`/ramp code. `PointInSolid` (spear-stick) → "point in a solid
+  cell/AABB". Trajectory ground/solid checks reuse it.
+- `Simulation.StepPlayer`: replace planar-move + gravity + support with the swept-AABB
+  controller (1c). Keep the input struct + charge/attack/build FSMs unchanged.
+- Building: `TryGetBuildPlacement` returns a **world origin cell + rotation** (snap to
+  `CellSize`), not a min/max wedge; place writes the pattern's cells; cap-eviction clears
+  a build's cells. Ghost renders the pattern mesh at the target (ties into item 3).
+- `MeshFactory`: build a mesh from a voxel set (start: per-cell cubes / simple staircase;
+  later greedy-mesh + bevel for the "enhanced Minecraft" look). Collision stays the cells.
+- `Bootstrap`: arena boxes stay as static AABBs (compatible); default build = the
+  staircase voxel pattern.
 
-**Definition of done:** on device, you build a ramp in front of you and walk straight
-up it; jumping off the top gains height.
+### 1f. Tests (rewrite collision/movement tests)
+- `WalksIntoWallStopsAtRadius` — box halted exactly at contact, no overlap/tunnel.
+- `WalksUpVoxelStaircaseFromGround` — feed forward input at the base of a staircase,
+  assert the eye climbs to the top and isn't stuck (the case the old test never covered).
+- `JumpsOverLowWallButBlockedByTallWall` — encodes the step/jump/wall thresholds.
+- `SpearSticksInASolidCell`, build place/cap over cells, determinism stays green.
+
+**Definition of done:** you place the default build and walk straight up it; a low
+wall you can hop; a tall wall blocks you; all reproducible in `dotnet test`.
+
+**Note:** this is a real rewrite of the collision core + the movement half of the sim,
+so it's its own milestone (do it before/independent of the HUD & viewmodel items).
+Smooth *terrain* (future hills) is a separate heightfield path added with the world
+generator; the voxel controller above does not preclude it.
 
 ---
 
@@ -219,6 +254,10 @@ sim ready:
 ## 8. Decisions — RESOLVED
 1. **Build preview interaction** — ✅ **Option A: hold-to-preview, release to place.**
 2. **Viewmodel rendering** — ✅ **Dedicated overlay camera.**
+3. **Collision/character-controller model** — ✅ **Voxel swept-AABB + auto step-up**
+   (see section 1), with **eased** vertical step-up.
+4. **Player footprint** — box first (half-width = radius); round to a cylinder later
+   only if corners feel catchy.
 
 Both locked; the plan above reflects them. Ready to implement in the priority order in
 section "Priority order."
