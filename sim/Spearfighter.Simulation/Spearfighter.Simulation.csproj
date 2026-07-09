@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Compiles the SAME simulation source that Unity compiles under
+    unity/Assets/Spearfighter/Simulation. Single source of truth: the sim is
+    engine-agnostic (System.Numerics only, no UnityEngine), so it builds and runs
+    under plain .NET here, which is how we unit-test gameplay math without Unity.
+  -->
+
+  <PropertyGroup>
+    <TargetFramework>netstandard2.1</TargetFramework>
+    <LangVersion>9.0</LangVersion>
+    <Nullable>disable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <AssemblyName>Spearfighter.Simulation</AssemblyName>
+    <RootNamespace>Spearfighter.Simulation</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="..\..\unity\Assets\Spearfighter\Simulation\**\*.cs" />
+  </ItemGroup>
+
+</Project>

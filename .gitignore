@@ -1,0 +1,36 @@
+# ---- Unity ----
+unity/[Ll]ibrary/
+unity/[Tt]emp/
+unity/[Oo]bj/
+unity/[Bb]uild/
+unity/[Bb]uilds/
+unity/[Ll]ogs/
+unity/[Uu]serSettings/
+unity/[Mm]emoryCaptures/
+unity/[Rr]ecordings/
+unity/.vs/
+unity/Assets/AssetStoreTools*
+unity/*.csproj
+unity/*.sln
+unity/*.unityproj
+unity/*.user
+
+# Unity crash / build artifacts
+sysinfo.txt
+*.apk
+*.aab
+*.ipa
+
+# ---- dotnet (sim + tests) ----
+sim/**/bin/
+sim/**/obj/
+Spearfighter.sln.DotSettings.user
+
+# ---- OS / editor ----
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# ---- Claude Code local machine settings ----
+.claude/settings.local.json
