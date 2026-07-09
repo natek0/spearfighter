@@ -2,8 +2,7 @@
     "name": "Spearfighter.Game",
     "rootNamespace": "Spearfighter.Game",
     "references": [
-        "Spearfighter.Simulation",
-        "Unity.RenderPipelines.Universal.Runtime"
+        "Spearfighter.Simulation"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

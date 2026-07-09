@@ -35,9 +35,6 @@ namespace Spearfighter.Game
             BuildEnvironmentVisuals();
             var cam = EnsureCamera(cfg.EyeHeight);
 
-            var viewmodel = new GameObject("ViewmodelRig").AddComponent<ViewmodelRig>();
-            viewmodel.Init(cam, cfg);
-
             var input = new GameObject("PlayerInput").AddComponent<PlayerInput>();
             var renderer = new GameObject("WorldRenderer").AddComponent<WorldRenderer>();
             var traj = new GameObject("TrajectoryRenderer").AddComponent<TrajectoryRenderer>();
@@ -50,10 +47,22 @@ namespace Spearfighter.Game
             runner.Renderer = renderer;
             runner.Trajectory = traj;
             runner.Hud = hud;
-            runner.Viewmodel = viewmodel;
             runner.Cam = cam;
             runner.AddBot(bot.Id, new BotBrain(seed ^ 0xABCDu));
             runner.Begin();
+
+            // The viewmodel is a non-essential visual: build it LAST and never let a
+            // failure here abort startup (that is what wiped the game last time).
+            try
+            {
+                var viewmodel = new GameObject("ViewmodelRig").AddComponent<ViewmodelRig>();
+                viewmodel.Init(cam, cfg);
+                runner.Viewmodel = viewmodel;
+            }
+            catch (System.Exception e)
+            {
+                Debug.LogWarning("Spearfighter: viewmodel setup failed; continuing without it. " + e);
+            }
         }
 
         private static void BuildArena(SimCore sim)
