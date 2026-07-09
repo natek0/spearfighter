@@ -4,6 +4,85 @@
 
 ---
 
+# IMPLEMENTATION STATUS — updated 2026-07-09
+
+*Legend: ✅ done · 🟡 partial (started; note says what's left) · ⬜ not started · ⏸ deferred by scope decision. Status covers P0/P1 only (the phases we're building). The task spec itself is unchanged and lives below this section.*
+
+**What runs today:** an engine-agnostic, fixed-tick, input-driven **simulation** (`unity/Assets/Spearfighter/Simulation/`, no `UnityEngine` dependency) with a **17-test xUnit suite that passes** (`cd sim && dotnet test`), plus the **Unity 6.5 view/input/HUD glue** (`unity/Assets/Spearfighter/Game/`) and a code-driven `Bootstrap` that runs the full loop from one component on an empty scene. Not yet feel-tested on a device — that's the open Phase 0 gate.
+
+### WS0 — Foundation & Architecture
+- ✅ **⚠ Simulation/rendering separation** — the centerpiece. `Simulation.Tick(commands)` is fixed-tick, engine-agnostic; rendering is strictly downstream. `noEngineReferences` on the sim asmdef *enforces* it at compile time.
+- ✅ Input abstraction — one `InputCommand` struct; human, bot, (future) network all produce it, consumed identically.
+- ✅ Data-driven config — `SimConfig` POCO + `SimConfigAsset` ScriptableObject. (Remote-config *backing* is WS11.)
+- ✅ Code architecture — two asmdefs (Simulation / Game), clear folder split, conventions.
+- ✅ Source control — git repo + `.gitignore` (Unity+dotnet), pushed to GitHub `main`. (Git LFS + formal branching strategy: not needed yet.)
+- 🟡 Unity project — 6.5 scaffold (manifest w/ URP, `ProjectVersion`, asmdefs) done. **Left:** assign URP pipeline asset, switch on iOS/Android build targets, color space + ASTC. (Materials fall back to Standard so Play works meanwhile.)
+- ⬜ CI/CD cloud builds → TestFlight/Play internal — external deps (Apple/Google accounts, cloud vendor).
+- ⬜ Project-management tracker / milestone board — using in-session task list only.
+- ⏸ Early SDK stubs (Fusion/BaaS/analytics no-ops) — seams exist (`InputCommand`, `SimConfig`, `SimEvent`); actual stubs deferred with those systems.
+
+### WS1 — Input & Controls (Scheme B)
+- ✅ Left move joystick (touch floating + WASD desktop).
+- ✅ Right-side look drag with two sensitivity profiles (base + reduced-while-charging, applied *in-sim* off authoritative charge state).
+- ✅ **⚠ Draggable attack button** — tap = jab, hold = charge/throw, drag-while-held aims; tap-vs-charge disambiguated by hold time + drag distance. The core gesture.
+- ✅ Charge state machine (c∈[0,1]), ✅ jump button, ✅ build button (+ rotate).
+- 🟡 Multitouch/latency — legacy-Input multitouch works. **Left:** palm rejection + migrate to the Input System (P1 polish).
+- 🟡 Haptics — hit-confirm vibrate wired. **Left:** full haptics map (charge tick, land, place, meter-full).
+- ⬜ Customizable HUD layout / left-right-hand mode.
+
+### WS2 — Character & Movement
+- ✅ First-person camera rig + FOV (74). **Left:** head-bob/comfort/motion-reduction toggles.
+- 🟡 Kinematic capsule controller — move/jump/gravity/grounding done and sim-owned. **Left:** acceleration/friction/air-control feel curves (currently instant velocity), coyote time.
+- ✅ **⚠ Slope/ramp traversal** — walk up ramps, gain height; unit-tested.
+- 🟡 Movement tuning harness — bots + data-driven config give the loop; dedicated tuning UI later.
+- ⬜ Vault/mantle (P1). ⬜ Animation (P2).
+
+### WS3 — Spear Combat
+- ✅ Charge→power model, ✅ **⚠ arced projectile**, ✅ **⚠ trajectory-preview arc** (dotted, live, togglable, parity-tested vs real flight).
+- ✅ Throw spawn (locally predicted), ✅ jab, ✅ hitbox/hurtbox hit detection (server rewind = WS10).
+- ✅ **⚠ projectile-miss = stick** (into floor/build/pillar, no destruction).
+- ✅ Health + damage + medium TTK. ✅ Death & round-based respawn. ✅ all combat values data-driven.
+- 🟡 **Stamina/posture system is NOT implemented** — health-only for now (deliberate; revisit when tuning counterplay).
+
+### WS4 — Building (default ramp-wall)
+- ✅ Ramp-wall — procedural walkable wedge mesh (visual reuses the sim's exact collision surface), ~1 player-height.
+- ✅ **⚠ Placement** — grid snap, 90° rotate, live ghost preview, reach clamp, no-bury-a-player check, one-tap place.
+- ✅ Energy meter (drain/regen + UI bar), ✅ simultaneous-build cap (oldest despawns), ✅ projectile-stick into placed builds.
+- 🟡 Build perf (pooling) — meshes pooled per build id. **Left:** off-main-thread gen + LODs (P2).
+- ⏸ **Custom voxel authoring (whole sub-workstream) — deferred this pass**: voxel grid, editor UI, bitmask serialization, mesh gen, collider gen, per-player storage, replication. (Copy-build P2, fairness/anti-turtle P3+ also deferred.)
+
+### WS5 — AI / Bots
+- ✅ **⚠ Bot emits the same `InputCommand`** as a human → vs-bots exercises the real sim path.
+- 🟡 Behaviors — spacing (hold range), ballistic aim solve, charge+throw, jab up close, occasional build: done. **Left:** meaningful reaction to incoming (dodge/block cover), difficulty tiers.
+- ⬜ **⚠ Navigation over dynamic geometry** — intentionally naive (straight-line approach/retreat + jump). Real navmesh-over-player-builds is flagged and deferred.
+
+### WS6 — Arena & Level Design
+- ✅ Greybox arena — cover wall + pillars (mirrors the validated prototype), built in code by `Bootstrap`.
+- 🟡 Spawn points done. **Left:** world bounds + out-of-bounds handling.
+- ⬜ Launch arenas + art pass (P2).
+
+### WS9 — UI / UX (P1 items)
+- 🟡 Core HUD — health, build energy, charge bar, hit-count, crosshair + flash, arc toggle, respawn banner (IMGUI greybox). **Left:** production uGUI/UI-Toolkit, FP-peripheral layout, customizable layout.
+- 🟡 Bot practice — you already fight a bot; dedicated practice-mode UI later.
+
+### WS11 — Backend & Live Services (P1 items)
+- 🟡 Remote config — `SimConfig` is the data-driven seam it plugs into; **no remote backing yet**.
+- ⏸ BaaS selection, player-data schema/storage, **⚠ analytics/telemetry** — vendor-blocked; deferred until there's a running game to measure. (`SimEvent` stream is the natural analytics hook.)
+
+### WS14 — Testing & QA (P0/P1 items)
+- ✅ Automated tests — 17 xUnit tests: charge curve, jab-vs-throw (+drag tiebreak), reduced-sens-while-charging, trajectory↔flight parity, arced stick, ballistic-solved bot aim, movement/landing, ramp walking, wall block, energy drain/regen, build-cap eviction, full determinism (bot in the loop).
+- ⏳ **⚠ Combat-feel playtest (every build)** — the primary gate. **Needs you, on a device.** Not yet done.
+- ⏳ **⚠ Build+fight feel test in first-person** (the "can you fight inside geometry you can't see around" check) — needs device.
+- ⬜ Balance-via-telemetry (needs analytics). ⬜ Unity PlayMode smoke tests for the glue layer.
+
+### Immediate deferred set (by our scope decision, not oversights)
+Voxel custom-build editor · all backend/analytics/remote-config *backing* · netcode (WS10, Phase 3) · art/audio/perf (Phase 2) · store/monetization/compliance (Phase 4).
+
+### How to proceed → see the **Phase sequencing** and **Critical path** sections at the bottom of this file.
+The gating next step is **Phase 0's feel gate**: open the Unity project on your phone (or Device Simulator) and confirm charge-aim-throw + jab + movement feels good with two thumbs. Everything else waits on that answer.
+
+---
+
 ## Locked spec (decisions from our discussion)
 
 - **Perspective:** first-person.
