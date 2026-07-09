@@ -95,8 +95,10 @@ horizon; on flat ground that's always, and it blocks the view.
 **Goal:** you see exactly where the build will land **only when you intend to build**,
 and the preview never obscures normal play.
 
-**Design options (see Decisions — pick one):**
-- **A. Hold-to-preview (recommended).** Press-and-hold BUILD → translucent ghost appears
+**DECISION (locked): Option A — hold-to-preview, release to place.**
+
+**Design options (A chosen):**
+- **A. Hold-to-preview (CHOSEN).** Press-and-hold BUILD → translucent ghost appears
   at the aimed spot and tracks your aim; **release places it**. Quick tap = place
   immediately at current aim (ghost flashes for a frame). Ghost only ever visible while
   the thumb is on BUILD. Matches "know where it goes in the moment."
@@ -152,8 +154,8 @@ starting point to curve away from.
   handedness so no negations are needed — logged as 🧱 tech-debt, not now.)
 
 ### 4b. Viewmodel rig (arms + spear), rendered without clipping
-- **Rendering approach (see Decisions):**
-  - **Overlay camera (recommended, standard FPS).** A second URP **Overlay** camera
+- **Rendering approach — DECISION (locked): dedicated overlay camera.**
+  - **Overlay camera (CHOSEN, standard FPS).** A second URP **Overlay** camera
     stacked on the main camera, rendering only a `Viewmodel` layer, clearing depth, with
     a narrow FOV. The arms/spear live on that layer as children of the main camera, so
     they always draw on top and never poke through walls.
@@ -214,8 +216,9 @@ sim ready:
 - **On-device:** one Build (Append) + Xcode Run per change set; check ramp walk, HUD
   placement, build preview, viewmodel/arc.
 
-## 8. Decisions needed before coding
-1. **Build preview interaction** — Option A (hold-to-preview, release to place) vs B
-   (toggle build mode) vs C (ground reticle only). *Recommend A.*
-2. **Viewmodel rendering** — dedicated overlay camera (no clipping, recommended) vs
-   single camera (simpler, may clip near walls). *Recommend overlay.*
+## 8. Decisions — RESOLVED
+1. **Build preview interaction** — ✅ **Option A: hold-to-preview, release to place.**
+2. **Viewmodel rendering** — ✅ **Dedicated overlay camera.**
+
+Both locked; the plan above reflects them. Ready to implement in the priority order in
+section "Priority order."
