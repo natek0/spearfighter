@@ -42,6 +42,7 @@ namespace Spearfighter.Simulation
         public float BuildEnergy;
         public int BuildRotationSteps;   // 0..3, 90-degree increments
         public bool IsBuildPreviewing;   // holding BUILD this tick (ghost visible)
+        public VoxelTemplate BuildTemplate; // player's authored custom shape; null = default staircase
 
         // Rendering aid: after an instant step-up, the visual eye lags by this much
         // and eases back to 0, so a voxel staircase reads as a smooth ramp.

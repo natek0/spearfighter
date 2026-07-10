@@ -307,11 +307,12 @@ namespace Spearfighter.Simulation
         }
 
         /// <summary>
-        /// Compute the world voxel cells the default build would occupy from the
-        /// player's aim, without placing them (used by the ghost preview too). The
-        /// staircase rises AWAY from the player so you can walk straight up it;
-        /// RotateBuild offsets the facing in 90-degree steps. Returns a shared
-        /// scratch list — consume it before the next call.
+        /// Compute the world voxel cells the current build would occupy from the
+        /// player's aim, without placing them (used by the ghost preview too).
+        /// Uses the player's CUSTOM voxel template if they have one authored, else the
+        /// default walkable staircase. Both rise/extend AWAY from the player, centred
+        /// left-right on the aim; RotateBuild offsets the facing in 90-degree steps.
+        /// Returns a shared scratch list — consume it before the next call.
         /// </summary>
         public bool TryGetBuildPlacement(PlayerState p, out List<Cell> cells)
         {
@@ -333,14 +334,29 @@ namespace Spearfighter.Simulation
             int oz = (int)System.MathF.Floor(ground.Z / cs);
             int oy = (int)System.MathF.Floor(World.GroundHeight / cs);
 
-            // facing → up-slope cell direction, plus a perpendicular width direction
+            // facing → away-from-player cell direction, plus a perpendicular width axis
             (int dx, int dz) = DominantDir(SimMath.PlanarForward(p.Yaw), p.BuildRotationSteps);
             int px = dz, pz = dx;
 
-            for (int r = 0; r < Config.BuildRunLength; r++)
-                for (int y = 0; y <= r; y++)
-                    for (int w = 0; w < Config.BuildWidth; w++)
-                        cells.Add(new Cell(ox + dx * r + px * w, oy + y, oz + dz * r + pz * w));
+            if (p.BuildTemplate != null && !p.BuildTemplate.IsEmpty)
+            {
+                // Custom template: local X = width (centred on aim), Z = depth (away), Y = up.
+                var t = p.BuildTemplate;
+                int wOff = t.SizeX / 2;
+                foreach (var lc in t.FilledCells())
+                {
+                    int wx = lc.X - wOff;
+                    cells.Add(new Cell(ox + dx * lc.Z + px * wx, oy + lc.Y, oz + dz * lc.Z + pz * wx));
+                }
+            }
+            else
+            {
+                // Default walkable staircase.
+                for (int r = 0; r < Config.BuildRunLength; r++)
+                    for (int y = 0; y <= r; y++)
+                        for (int w = 0; w < Config.BuildWidth; w++)
+                            cells.Add(new Cell(ox + dx * r + px * w, oy + y, oz + dz * r + pz * w));
+            }
             return true;
         }
 

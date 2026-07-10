@@ -64,6 +64,18 @@ namespace Spearfighter.Game
             {
                 Debug.LogWarning("Spearfighter: viewmodel setup failed; continuing without it. " + e);
             }
+
+            // Custom voxel build editor (WS4). Non-essential to the core loop, so it's
+            // built last in its own try/catch and can never abort startup.
+            try
+            {
+                var editor = gameObject.AddComponent<BuildEditorGui>();
+                editor.Init(sim, human.Id, runner);
+            }
+            catch (System.Exception e)
+            {
+                Debug.LogWarning("Spearfighter: build editor setup failed; continuing without it. " + e);
+            }
         }
 
         // Arena half-extents (playfield). Bounds walls sit on these; spawns are inside.

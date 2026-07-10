@@ -44,9 +44,14 @@ namespace Spearfighter.Game
 
         public bool ShowTrajectory => _showTrajectory;
 
+        /// <summary>When true, the sim stops ticking (used by the build editor so you
+        /// author a shape without the bot fighting a frozen you). Rendering continues.</summary>
+        public bool Paused;
+
         private void Update()
         {
             if (Sim == null) return;
+            if (Paused) { _accumulator = 0f; Renderer.Render(); Trajectory.Render(LocalIndex, _showTrajectory); return; }
             float dt = Sim.Config.TickDt;
 
             Input.Sample();

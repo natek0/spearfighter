@@ -49,7 +49,7 @@
 - ✅ **⚠ Placement** — grid snap, 90° rotate, live ghost preview, reach clamp, no-bury-a-player check, one-tap place.
 - ✅ Energy meter (drain/regen + UI bar), ✅ simultaneous-build cap (oldest despawns), ✅ projectile-stick into placed builds.
 - 🟡 Build perf (pooling) — meshes pooled per build id. **Left:** off-main-thread gen + LODs (P2).
-- ⏸ **Custom voxel authoring (whole sub-workstream) — deferred this pass**: voxel grid, editor UI, bitmask serialization, mesh gen, collider gen, per-player storage, replication. (Copy-build P2, fairness/anti-turtle P3+ also deferred.)
+- 🟡 **Custom voxel authoring (WS4 marquee) — DONE for MVP**: `VoxelTemplate` (bounded grid + compact string serialization, engine-agnostic + unit-tested); a greybox **layer-by-layer IMGUI editor** (`BuildEditorGui` — tap cells per Y-slice, save/clear/use-default, pauses the sim while authoring); saved per player via **PlayerPrefs**; `PlayerState.BuildTemplate` drives `TryGetBuildPlacement`, so the normal BUILD button now places YOUR shape (mesh + collision reuse the same cells; ghost preview works). **Deferred (later phases):** production editor UI + 3D preview (WS9/P2), copy-a-placed-build (P2), backend template storage + replication (WS10/WS11), fairness/anti-turtle (P3+).
 
 ### WS5 — AI / Bots
 - ✅ **⚠ Bot emits the same `InputCommand`** as a human → vs-bots exercises the real sim path.
@@ -129,9 +129,9 @@
   sim-owned + unit-tested (25 sim tests). `RespawnDelay` moved into `SimConfig`.
 
 ### New tasks & open items (added from this build phase)
-- ⬜ **Voxel custom-build editor** (WS4 P1) — now unblocked: the world voxel grid + cell
-  representation exist. Needs: constrained editor grid, tap-to-fill UI, bitmask
-  serialization, mesh/collider from cells (collider = the same cells), per-player storage.
+- ✅ **Voxel custom-build editor** (WS4 P1) — DONE (MVP): constrained grid + tap-to-fill
+  IMGUI editor, bitmask serialization (`VoxelTemplate`), mesh/collider from the same cells,
+  per-player PlayerPrefs storage. Production UI + 3D preview + backend storage = later.
 - ⬜ **Build-mesh smoothing / greedy-mesh + bevel** so voxel builds read as "enhanced
   Minecraft," not raw cubes (WS7). Collision stays the cells.
 - ⬜ **No-clip viewmodel via URP overlay camera** — revisit carefully (it crashed once);
@@ -162,8 +162,14 @@ highest-leverage Phase 1 work now, in rough priority:
 2. **Match structure (3-life stocks + win/lose + auto-rematch) — DONE (2026-07-09).** The loop
    now has a beginning/middle/end; it reads as a game, not a sandbox. **Next on the Phase-1
    thread:** on-device feel test of the whole match, then tune `Bot*`/`Match*` knobs.
-3. **Voxel custom-build editor** — the marquee building feature (now unblocked). *(Remaining P1.)*
-4. **Analytics + remote-config seam** — so tuning stops being blind. *(Remaining P1.)*
+3. **Voxel custom-build editor (WS4) — DONE (2026-07-09).** `VoxelTemplate` + layer-by-layer
+   IMGUI editor + PlayerPrefs storage; the BUILD button now places your authored shape. Needs a
+   device visual test of the editor UI.
+4. **WS11 analytics + remote-config — the LAST Phase-1 item.** The *seam* (log `SimEvent`s
+   locally, load `SimConfig` from JSON) is easy + decision-free; the *backing* needs a
+   **load-bearing vendor pick** (Unity Gaming Services / PlayFab / Nakama) + account setup.
+   With WS4 done + WS5/WS6/WS9/match-state done, this is all that remains before the Phase-1
+   gate ("is 1v1 vs a bot fun in FP without feeling blind?") is fully evaluable.
 Plus any small feel/visual tweaks. Full context: `spearfighting_context_and_plan.md`.
 
 ---
