@@ -327,6 +327,11 @@ Plus any small feel/visual tweaks. Full context: `spearfighting_context_and_plan
 
 # WORKSTREAM 10 — Networking & Multiplayer (server-authoritative) ⚠
 
+> **Sprint-level breakdown: `spearfighting_netcode_plan.md`** — why it's the hardest, the
+> mutable-world sync approach (replicate build *events*, rebuild deterministically), the
+> server-auth/prediction/reconciliation/lag-comp model, the load-bearing decisions (D1–D6),
+> and the phased plan WS10.0–10.8 with the two-device build-and-fight spike done EARLY.
+
 - **[P3]** Integrate Photon Fusion in server/host mode: server-authoritative state, client prediction + reconciliation (local player), interpolation (remote), lag compensation (hit validation via server rewind).
 - **[P3]** Managed hosting integration (Photon Cloud/Fusion-hosted or Unity Multiplay); region deployment.
 - **[P3]** Network the systems: player state, predicted movement, **projectiles (predicted client-side, hits validated server-side with rewind)**, meter.
