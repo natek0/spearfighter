@@ -21,10 +21,15 @@ combat**. Free-to-play, **cosmetics-only** monetization (no ads, no pay-to-win).
   **Match structure done:** stock-based **3-life** match with win/lose + auto-rematch, HUD life
   pips + banner (sim-owned, unit-tested; 25 sim tests). **Remain:** voxel custom-build editor,
   analytics/remote-config, bot difficulty tiers.
-- **Next:** on-device feel test of the full match, then the **voxel custom-build editor** and the
-  **analytics/remote-config seam** to close Phase 1. See `spearfighting_task_catalog.md`. The
-  catalog got a **comprehensiveness pass** (WS17–WS22: characters/animation, devops/observability,
-  persistence/localization, trust-&-safety/anti-cheat, retention, UA).
+- **Voxel custom-build editor done** (WS4): author a shape on a bounded grid; `PlayerState.BuildTemplate`
+  drives placement; greybox IMGUI editor; persists via PlayerPrefs. **Firebase analytics/remote-config
+  seam done** (WS11): provider-agnostic, `NullBackend` default (works with zero setup), `SimConfigRemote`
+  live-tunes the sim; Firebase impl guarded by `SPEARFIGHTER_FIREBASE` — owner finishes account/SDK
+  steps per `firebase_setup.md`. **Phase 1 is functionally complete.** 35 sim tests pass.
+- **Next:** owner completes the Firebase console/SDK steps (`firebase_setup.md`); then the big open
+  risk is **WS10 netcode / mutable-world sync** (prototype two-device build-and-fight early) or the
+  **WS7/WS13 art+perf pass** (incl. redoing URP properly via the editor wizard). See
+  `spearfighting_task_catalog.md` for the full breakdown (WS0–WS22).
 
 ## Tech stack (decided)
 - **Engine:** Unity 6.5 (`6000.5.3f1`), C#, **URP** (mobile render pipeline).

@@ -66,8 +66,19 @@
 - 🟡 Bot practice — you already fight a bot; dedicated practice-mode UI later.
 
 ### WS11 — Backend & Live Services (P1 items)
-- 🟡 Remote config — `SimConfig` is the data-driven seam it plugs into; **no remote backing yet**.
-- ⏸ BaaS selection, player-data schema/storage, **⚠ analytics/telemetry** — vendor-blocked; deferred until there's a running game to measure. (`SimEvent` stream is the natural analytics hook.)
+- ✅ **BaaS selected: Firebase** (Analytics + Remote Config + later Crashlytics). Best-in-class
+  mobile analytics/config, cheap, reversible; pairs with Photon for netcode. Rationale in-session.
+- ✅ **Analytics + remote-config SEAM built + unit-tested** (provider-agnostic `IAnalyticsService`
+  / `IRemoteConfigService`; `NullBackend` default so the game runs with zero setup and logs events
+  to the console). `SimConfigRemote` maps ~28 keys ⇄ `SimConfig` and live-overrides the running
+  config (no rebuild to tune). Milestones wired: `app_open`, `match_start/over`, `build_placed`,
+  `build_editor_opened`, `custom_template_saved`. 35 sim tests pass.
+- 🟡 **Firebase impl written** ([FirebaseBackend.cs], guarded by `SPEARFIGHTER_FIREBASE`). **Left =
+  the account/console/SDK/device steps only the owner can do** — see **`firebase_setup.md`** (create
+  project, register apps + config files, import SDK, set the define, enter keys, build). Flip the
+  define and it's live.
+- ⏸ Player-data schema/storage, accounts, economy — Phase 3–4 (add a game backend then; Firebase
+  stays for analytics/config).
 
 ### WS14 — Testing & QA (P0/P1 items)
 - ✅ Automated tests — 17 xUnit tests: charge curve, jab-vs-throw (+drag tiebreak), reduced-sens-while-charging, trajectory↔flight parity, arced stick, ballistic-solved bot aim, movement/landing, ramp walking, wall block, energy drain/regen, build-cap eviction, full determinism (bot in the loop).

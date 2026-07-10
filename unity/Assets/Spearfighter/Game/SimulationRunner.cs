@@ -87,6 +87,32 @@ namespace Spearfighter.Game
                 Hud.HandleEvent(e);
                 if (Viewmodel != null && e.Type == SimEventType.SpearThrown && e.ActorId == LocalIndex)
                     Viewmodel.OnThrow();
+                ForwardAnalytics(e);
+            }
+        }
+
+        /// <summary>Forward meaningful match milestones to analytics (WS11) — the
+        /// signal needed to tune balance + measure retention. Kept to real events
+        /// (match start/result, build usage), not per-tick spam.</summary>
+        private void ForwardAnalytics(SimEvent e)
+        {
+            switch (e.Type)
+            {
+                case SimEventType.MatchReset:
+                    Backend.Analytics.Log("match_start");
+                    break;
+                case SimEventType.MatchOver:
+                    Backend.Analytics.Log("match_over", new Dictionary<string, object>
+                    {
+                        { "result", e.ActorId == LocalIndex ? "win" : "lose" },
+                    });
+                    break;
+                case SimEventType.BuildPlaced when e.ActorId == LocalIndex:
+                    Backend.Analytics.Log("build_placed", new Dictionary<string, object>
+                    {
+                        { "custom", Sim.Players[LocalIndex].BuildTemplate != null },
+                    });
+                    break;
             }
         }
     }

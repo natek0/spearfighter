@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 using Spearfighter.Simulation;
 #if UNITY_EDITOR
@@ -27,6 +28,16 @@ namespace Spearfighter.Game
 
             SimConfig cfg = config != null ? config.ToSimConfig() : SimConfig.Default();
             var sim = new SimCore(cfg, seed);
+
+            // WS11 backend: analytics + remote-config. NullBackend until Firebase is
+            // set up (firebase_setup.md); then values from the console live-tune the
+            // sim without a rebuild. Init is async, so re-apply once it's ready.
+            Backend.Init(onReady: () =>
+            {
+                ApplyRemoteConfig(sim.Config);
+                Backend.Analytics.Log("app_open");
+            });
+            ApplyRemoteConfig(sim.Config); // apply anything already available (no-op for NullBackend)
 
             BuildArena(sim);
             // Symmetric spawns: equal distance from the central cover wall (z=0).
@@ -81,6 +92,23 @@ namespace Spearfighter.Game
         // Arena half-extents (playfield). Bounds walls sit on these; spawns are inside.
         private const float ArenaHalfX = 16f;
         private const float ArenaHalfZ = 20f;
+
+        /// <summary>Override the live SimConfig with any values the backend has fetched
+        /// (WS11). No-op with the NullBackend; with Firebase, tuning done in the console
+        /// applies here without a rebuild.</summary>
+        private static void ApplyRemoteConfig(SimConfig cfg)
+        {
+            var rc = Backend.RemoteConfig;
+            if (rc == null || !rc.IsReady) return;
+            var overrides = new Dictionary<string, double>();
+            foreach (var key in SimConfigRemote.Keys)
+                if (rc.TryGetDouble(key, out double v)) overrides[key] = v;
+            if (overrides.Count > 0)
+            {
+                SimConfigRemote.Apply(cfg, overrides);
+                Debug.Log($"[remote-config] applied {overrides.Count} override(s)");
+            }
+        }
 
         private static void BuildArena(SimCore sim)
         {

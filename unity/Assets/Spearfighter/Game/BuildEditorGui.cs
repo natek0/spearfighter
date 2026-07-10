@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 using Spearfighter.Simulation;
 
@@ -42,6 +43,7 @@ namespace Spearfighter.Game
             _layer = 0;
             IsOpen = true;
             if (_runner != null) _runner.Paused = true;
+            Backend.Analytics.Log("build_editor_opened");
         }
 
         private void Close()
@@ -62,6 +64,7 @@ namespace Spearfighter.Game
             {
                 p.BuildTemplate = VoxelTemplate.Decode(_edit.Encode()); // clone
                 PlayerPrefs.SetString(PrefKey, _edit.Encode());
+                Backend.Analytics.Log("custom_template_saved", new Dictionary<string, object> { { "cells", _edit.Count } });
             }
             PlayerPrefs.Save();
             Close();
