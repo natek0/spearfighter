@@ -25,6 +25,11 @@ namespace Spearfighter.Simulation
 
         public int TickCount { get; private set; }
 
+        // ---- match state (stocks-based; see SimConfig.MatchLives) ----
+        public bool MatchOver { get; private set; }
+        public int WinnerId { get; private set; } = -1;
+        public float MatchResetTimer { get; private set; }
+
         private readonly List<SimEvent> _events = new List<SimEvent>();
         public IReadOnlyList<SimEvent> Events => _events;
 
@@ -34,7 +39,6 @@ namespace Spearfighter.Simulation
         private int _nextBuildId = 1;
 
         private const float TorsoOffset = 1.1f;   // hurtbox center above feet (matches prototype)
-        private const float RespawnDelay = 2.0f;
 
         public SimCore(SimConfig config, uint seed = 12345)
         {
@@ -55,6 +59,7 @@ namespace Spearfighter.Simulation
                 Feet = spawnFeet,
                 Yaw = yaw,
                 Health = Config.MaxHealth,
+                Lives = Config.MatchLives,
                 BuildEnergy = Config.BuildMaxEnergy,
             };
             Players.Add(p);
@@ -72,6 +77,15 @@ namespace Spearfighter.Simulation
             _events.Clear();
             float dt = Config.TickDt;
 
+            // Match is decided: freeze the world (a results beat), then auto-rematch.
+            if (MatchOver)
+            {
+                MatchResetTimer -= dt;
+                if (MatchResetTimer <= 0f) ResetMatch();
+                TickCount++;
+                return;
+            }
+
             for (int i = 0; i < Players.Count; i++)
             {
                 var cmd = i < commands.Count ? commands[i] : InputCommand.Empty;
@@ -88,7 +102,8 @@ namespace Spearfighter.Simulation
         {
             if (!p.Alive)
             {
-                // round-based respawn (WS3 P1)
+                if (p.Eliminated) return; // out of lives: no respawn (match is ending)
+                // stock respawn while lives remain (WS3 P1)
                 p.ChargeHeldTime -= dt; // reuse as respawn countdown while dead
                 if (p.ChargeHeldTime <= 0f) Respawn(p);
                 return;
@@ -423,9 +438,54 @@ namespace Spearfighter.Simulation
             {
                 victim.Health = 0f;
                 victim.Phase = AttackPhase.Idle;
-                victim.ChargeHeldTime = RespawnDelay; // reused as respawn countdown while dead
+                victim.Lives--;
                 _events.Add(new SimEvent { Type = SimEventType.Death, ActorId = attacker.Id, TargetId = victim.Id, Position = at });
+                _events.Add(new SimEvent { Type = SimEventType.LifeLost, ActorId = attacker.Id, TargetId = victim.Id, Position = at, Amount = victim.Lives });
+
+                if (victim.Lives <= 0)
+                {
+                    // out of stocks → attacker wins the match
+                    victim.Eliminated = true;
+                    MatchOver = true;
+                    WinnerId = attacker.Id;
+                    MatchResetTimer = Config.MatchResetDelaySeconds;
+                    _events.Add(new SimEvent { Type = SimEventType.MatchOver, ActorId = attacker.Id, TargetId = victim.Id, Position = at });
+                }
+                else
+                {
+                    victim.ChargeHeldTime = Config.RespawnDelaySeconds; // reused as respawn countdown while dead
+                }
             }
+        }
+
+        /// <summary>Start a fresh match: full lives/health, players back to spawns, all
+        /// player-built geometry and spears cleared. Auto-invoked after the results beat;
+        /// (later) a manual "rematch" button can call this too.</summary>
+        public void ResetMatch()
+        {
+            for (int i = 0; i < Builds.Count; i++) World.RemoveBuild(Builds[i].Id);
+            Builds.Clear();
+            for (int i = 0; i < Spears.Length; i++) Spears[i].Active = false;
+
+            for (int i = 0; i < Players.Count; i++)
+            {
+                var p = Players[i];
+                p.Feet = _spawnPoints[i];
+                p.VelocityY = 0f;
+                p.Grounded = true;
+                p.Health = Config.MaxHealth;
+                p.Lives = Config.MatchLives;
+                p.Eliminated = false;
+                p.Phase = AttackPhase.Idle;
+                p.ChargeHeldTime = 0f;
+                p.StepEaseOffset = 0f;
+                p.BuildEnergy = Config.BuildMaxEnergy;
+            }
+
+            MatchOver = false;
+            WinnerId = -1;
+            MatchResetTimer = 0f;
+            Emit(SimEventType.MatchReset, -1);
         }
 
         private void Respawn(PlayerState p)

@@ -134,22 +134,39 @@ namespace Spearfighter.Game
         }
 
         // ---- factory helpers ----
+        // Greybox humanoid: legs + torso + arms + head, so the NPC reads as a figure
+        // with a facing (it turns to face you), not a featureless blob. Root sits at
+        // the sim FEET (y=0); parts are placed in local space up to ~player height.
+        // This is the placeholder for the real rigged, animated character (Phase 2 art)
+        // and the shared body used by PVP opponents later.
+        private static readonly Color BodyPink = new Color(0.95f, 0.30f, 0.62f);
+        private static readonly Color LimbPink = new Color(0.80f, 0.24f, 0.52f);
+        private static readonly Color HeadPink = new Color(1f, 0.62f, 0.82f);
+
         private GameObject MakeEnemy(int id)
         {
             var root = new GameObject($"Enemy{id}");
-            var body = GameObject.CreatePrimitive(PrimitiveType.Capsule);
-            DestroyCollider(body);
-            body.transform.SetParent(root.transform);
-            body.transform.localPosition = new Vector3(0, 0.9f, 0);
-            body.transform.localScale = new Vector3(0.9f, 0.75f, 0.9f);
-            SetColor(body, new Color(0.95f, 0.30f, 0.62f)); // NPC = pink
-            var head = GameObject.CreatePrimitive(PrimitiveType.Sphere);
-            DestroyCollider(head);
-            head.transform.SetParent(root.transform);
-            head.transform.localPosition = new Vector3(0, 1.7f, 0);
-            head.transform.localScale = Vector3.one * 0.55f;
-            SetColor(head, new Color(1f, 0.55f, 0.78f)); // NPC head = lighter pink
+            // legs (local +Z is the enemy's forward after the yaw+180 render rotation)
+            AddPart(root, PrimitiveType.Cube, new Vector3(-0.14f, 0.42f, 0f), new Vector3(0.18f, 0.85f, 0.24f), LimbPink);
+            AddPart(root, PrimitiveType.Cube, new Vector3(0.14f, 0.42f, 0f), new Vector3(0.18f, 0.85f, 0.24f), LimbPink);
+            // torso
+            AddPart(root, PrimitiveType.Cube, new Vector3(0f, 1.14f, 0f), new Vector3(0.5f, 0.62f, 0.32f), BodyPink);
+            // arms
+            AddPart(root, PrimitiveType.Cube, new Vector3(-0.34f, 1.14f, 0.02f), new Vector3(0.14f, 0.56f, 0.18f), LimbPink);
+            AddPart(root, PrimitiveType.Cube, new Vector3(0.34f, 1.14f, 0.02f), new Vector3(0.14f, 0.56f, 0.18f), LimbPink);
+            // head (nudged forward a touch so the figure clearly faces its aim)
+            AddPart(root, PrimitiveType.Sphere, new Vector3(0f, 1.66f, 0.03f), Vector3.one * 0.42f, HeadPink);
             return root;
+        }
+
+        private static void AddPart(GameObject root, PrimitiveType type, Vector3 pos, Vector3 scale, Color color)
+        {
+            var part = GameObject.CreatePrimitive(type);
+            DestroyCollider(part);
+            part.transform.SetParent(root.transform);
+            part.transform.localPosition = pos;
+            part.transform.localScale = scale;
+            SetColor(part, color);
         }
 
         private GameObject MakeGhost()

@@ -16,7 +16,7 @@
 - ✅ Data-driven config — `SimConfig` POCO + `SimConfigAsset` ScriptableObject. (Remote-config *backing* is WS11.)
 - ✅ Code architecture — two asmdefs (Simulation / Game), clear folder split, conventions.
 - ✅ Source control — git repo + `.gitignore` (Unity+dotnet), pushed to GitHub `main`. (Git LFS + formal branching strategy: not needed yet.)
-- 🟡 Unity project — 6.5 scaffold (manifest w/ URP, `ProjectVersion`, asmdefs) done. **Left:** assign URP pipeline asset, switch on iOS/Android build targets, color space + ASTC. (Materials fall back to Standard so Play works meanwhile.)
+- 🟡 Unity project — 6.5 scaffold (manifest w/ URP, `ProjectVersion`, asmdefs) done. **Runs on the built-in pipeline** with `Standard` materials (via `Mats`, which auto-selects the shader for the active pipeline) — renders correctly on device. **URP was attempted but REVERTED:** a *programmatically*-created URP renderer (`UniversalRenderPipelineAsset.Create` + bare `UniversalRendererData`) was missing internal resource refs, so URP rendered nothing but the skybox (sim + IMGUI HUD still ran). **Redo URP via Unity's editor wizard** (`Assets ▸ Create ▸ Rendering ▸ URP Asset (with Universal Renderer)`) so the renderer initializes correctly, and verify in Play *before* building. `Mats` will auto-switch to URP/Lit once a pipeline is assigned. **Also left:** iOS/Android build targets, color space + ASTC.
 - ⬜ CI/CD cloud builds → TestFlight/Play internal — external deps (Apple/Google accounts, cloud vendor).
 - ⬜ Project-management tracker / milestone board — using in-session task list only.
 - ⏸ Early SDK stubs (Fusion/BaaS/analytics no-ops) — seams exist (`InputCommand`, `SimConfig`, `SimEvent`); actual stubs deferred with those systems.
@@ -41,7 +41,7 @@
 - ✅ Charge→power model, ✅ **⚠ arced projectile**, ✅ **⚠ trajectory-preview arc** (dotted, live, togglable, parity-tested vs real flight).
 - ✅ Throw spawn (locally predicted), ✅ jab, ✅ hitbox/hurtbox hit detection (server rewind = WS10).
 - ✅ **⚠ projectile-miss = stick** (into floor/build/pillar, no destruction).
-- ✅ Health + damage + medium TTK. ✅ Death & round-based respawn. ✅ all combat values data-driven.
+- ✅ Health + damage + medium TTK. ✅ Death + **stock-based match (3 lives, win/lose, auto-rematch)**. ✅ all combat values data-driven.
 - 🟡 **Stamina/posture system is NOT implemented** — health-only for now (deliberate; revisit when tuning counterplay).
 
 ### WS4 — Building (default ramp-wall)
@@ -53,12 +53,12 @@
 
 ### WS5 — AI / Bots
 - ✅ **⚠ Bot emits the same `InputCommand`** as a human → vs-bots exercises the real sim path.
-- 🟡 Behaviors — spacing (hold range), ballistic aim solve, charge+throw, jab up close, occasional build: done. **Left:** meaningful reaction to incoming (dodge/block cover), difficulty tiers.
-- ⬜ **⚠ Navigation over dynamic geometry** — intentionally naive (straight-line approach/retreat + jump). Real navmesh-over-player-builds is flagged and deferred.
+- 🟡 Behaviors — spacing (hold range), ballistic aim solve, charge+throw, jab up close: done. **NEW this pass:** LOS/arc-aware **fire discipline** (only commits a throw when the solved arc actually reaches the foe — lobs over cover, won't fling into walls), **spear dodging** (reads spears in flight, side-steps/jumps the incoming line), and **reactive cover-building** (drops a cover build when exposed *and* recently hit, on a cooldown). All data-driven via new `Bot*` config knobs and unit-tested. **Left:** difficulty tiers, smarter build *use* (climbing for height).
+- 🟡 **⚠ Navigation over dynamic geometry** — still no real navmesh (deferred), but the bot is no longer purely naive: **stuck-detection** (no-progress → strafe + jump to route around/over walls, pillars, and builds) means it stops grinding on geometry. Full pathing over player-builds remains the flagged WS5 ⚠ item.
 
 ### WS6 — Arena & Level Design
-- ✅ Greybox arena — cover wall + pillars (mirrors the validated prototype), built in code by `Bootstrap`.
-- 🟡 Spawn points done. **Left:** world bounds + out-of-bounds handling.
+- ✅ Greybox arena — central cover wall + pillars, built in code by `Bootstrap`. **NEW:** now **symmetric about z=0** (mirrored pillars + equal-distance spawns) so a 1v1 is fair from either side.
+- ✅ Spawn points + **world bounds** — a closed sim-owned perimeter wall (same static-box collision) keeps player and bot inside the greybox (out-of-bounds handling: floor is flat + walls closed, so no fall-out volume needed).
 - ⬜ Launch arenas + art pass (P2).
 
 ### WS9 — UI / UX (P1 items)
@@ -92,6 +92,41 @@
   bottom-right, resolution-scaled, HP + build-energy bars (WS9).
 - ✅ **Controls**: look/move corrected (handedness), and **look-while-holding-BUILD** works
   (drag the build button to aim), matching the attack button.
+- ✅ **Bot → real opponent (first pass)** (WS5): LOS/arc-aware **fire discipline** (throws
+  only when the solved arc reaches the foe — lobs over cover, no flinging into walls),
+  **spear dodging** (side-step/jump the incoming line), **reactive cover-building** (build
+  when exposed + recently hit), and **stuck-detection routing** (strafe/jump around
+  walls/pillars/builds). New `VoxelWorld.SegmentBlocked` LOS query; new data-driven `Bot*`
+  config knobs; +4 xUnit tests (22 total, all green). Full navmesh still deferred.
+- ✅ **Arena tightened** (WS6): **symmetric about z=0** (mirrored pillars + equal-distance
+  spawns) and a **closed sim-owned bounds perimeter** so nobody walks into the void.
+- ✅ **"Glitchy map" ROOT CAUSE found + fixed** (WS7 render): the real bug was a **pipeline/
+  shader mismatch** — `Mats` assigned URP (`Universal Render Pipeline/Lit`) shaders, but **no URP
+  pipeline asset is assigned**, so the game runs on the **built-in** pipeline. URP shaders under
+  built-in don't run their depth pass → opaque geometry stopped writing depth → the ground plane
+  sorted over walls in flat chunks that flipped with the camera ("map overlaps itself"). The two
+  earlier passes (ground nudge, buried boxes) were band-aids on a broken depth buffer and were
+  **reverted**. **Fix:** `Mats` now picks the shader that matches the ACTIVE pipeline — built-in
+  `Standard` (opaque, ZWrite on) when no SRP is assigned — so depth writes correctly. Kept:
+  interior-face culling (greedy-mesh win), far clip 1000→250, a 2 cm ground nudge. *Needs an
+  on-device re-test.*
+- ⏸ **URP pipeline — attempted headless, broke rendering, REVERTED** (WS0). A programmatically
+  created URP asset (`UniversalRenderPipelineAsset.Create` + bare `UniversalRendererData`) rendered
+  only the skybox on device (renderer missing internal resource refs); sim + HUD kept running, so it
+  read as "everything invisible, still taking damage." Fully reverted to built-in + `Standard`
+  (the confirmed-working state). **Lesson: render-pipeline changes MUST be verified in Play/on device
+  before shipping — they can't be validated headlessly.** Redo URP via the **editor wizard** (not
+  code) when there's a live-verify loop; `Mats` already auto-switches to URP/Lit when a pipeline is
+  active. Built-in is fine for Phase 1.
+- ✅ **NPC → articulated greybox humanoid** (WS17): legs + torso + arms + head instead of a
+  capsule blob, so the figure has a readable facing/pose. Placeholder for the rigged/animated
+  character and the shared PVP body. *(Bot "jumps too much / too strong" is knob-tuning,
+  deferred by your call.)*
+- ✅ **Match structure — stocks/lives** (WS3): each player has **3 lives** (data-driven
+  `MatchLives`); a death costs a life + respawns while stocks remain; lose all 3 → eliminated,
+  opponent **wins the match**. Results freeze → **auto-rematch** (resets health/lives/positions,
+  clears builds + spears). HUD shows life pips (you + enemy) and a WIN/LOSE banner. All
+  sim-owned + unit-tested (25 sim tests). `RespawnDelay` moved into `SimConfig`.
 
 ### New tasks & open items (added from this build phase)
 - ⬜ **Voxel custom-build editor** (WS4 P1) — now unblocked: the world voxel grid + cell
@@ -103,8 +138,11 @@
   optional polish (WS7).
 - ⬜ **Terrain / world generator** (hills/valleys) — future; generalize the sim's flat
   ground to a heightfield sampler; matching Unity terrain mesh. Architecture left open.
-- ⬜ **Bot depth** (WS5) — current bot is basic; needs navigation over voxel/built geometry
-  and smarter use of builds + spacing to be a real Phase-1 opponent.
+- 🟡 **Bot depth** (WS5) — big pass done: LOS/arc-aware fire discipline, spear dodging,
+  reactive cover-building, and stuck-detection routing (strafe/jump around geometry), all
+  data-driven + unit-tested. **Left to be a *full* opponent:** difficulty tiers, real
+  navmesh over player-builds, and using builds offensively (climb for height). **Needs an
+  on-device feel test** to confirm the Phase-1 gate.
 - 🔲 **Decision — rotate-build button:** keep it or force builds to face the player?
   (Leaning keep; low-stakes.)
 - 🟡 **Movement feel** (WS2) — voxel controller solid; accel/friction curves, coyote time,
@@ -118,10 +156,14 @@ stamina/posture (may stay cut).
 ### Where to continue (recommended next)
 Phase 0's feel gate is effectively **passed** (played on-device, mechanics feel good). The
 highest-leverage Phase 1 work now, in rough priority:
-1. **Make the bot a real opponent + tighten the greybox arena** → actually test the Phase-1
-   gate ("is 1v1 vs a bot fun in FP without feeling blind?"). This is the fun-defining step.
-2. **Voxel custom-build editor** — the marquee building feature (now unblocked).
-3. **Analytics + remote-config seam** — so tuning stops being blind.
+1. **Bot depth + arena tightening — DONE (2026-07-09).** Fire discipline, dodging, reactive
+   cover, stuck-routing; symmetric + bounded arena; all unit-tested. Also **fixed the z-fighting
+   "glitchy map"** and gave the **NPC legs**.
+2. **Match structure (3-life stocks + win/lose + auto-rematch) — DONE (2026-07-09).** The loop
+   now has a beginning/middle/end; it reads as a game, not a sandbox. **Next on the Phase-1
+   thread:** on-device feel test of the whole match, then tune `Bot*`/`Match*` knobs.
+3. **Voxel custom-build editor** — the marquee building feature (now unblocked). *(Remaining P1.)*
+4. **Analytics + remote-config seam** — so tuning stops being blind. *(Remaining P1.)*
 Plus any small feel/visual tweaks. Full context: `spearfighting_context_and_plan.md`.
 
 ---
@@ -133,6 +175,12 @@ Plus any small feel/visual tweaks. Full context: `spearfighting_context_and_plan
 - **Aiming aid:** live **dotted trajectory-preview arc**.
 - **Building:** **live during combat** (Fortnite-style). Default object = **slanted ramp-wall** (~1 player-height, walkable top, rotatable, chainable for height). **Custom player-authored shapes** via constrained voxel editor, gameplay-relevant collision, copyable between players; fairness/anti-turtle constraints deferred to post-MVP. **Place-only** (no editing placed objects). Gated by a **regenerating energy meter**, single build cost, **cap on simultaneous builds**.
 - **Projectile-miss:** spear **sticks** into build or floor. **No destruction** for now.
+- **Characters:** the opponent body (NPC bot *and* future PVP players — identical to the sim)
+  is an **articulated humanoid with legs**, not a blob, on **one shared humanoid rig** so
+  cosmetic skins retarget cleanly. The local player is seen as a **first-person viewmodel**
+  (arms + held spear). **Animation is sim-driven** (pose follows sim position/velocity/phase/
+  health) and **never authoritative** — it can't feed back into movement or hits (protects the
+  sim/render split). Greybox segmented primitives now; rigged + skinned art is Phase 2.
 - **Netcode:** **server-authoritative** state-sync + client prediction + lag compensation. **Outsourced/managed hosting** (no self-managed servers). Real-time PvP is the goal; **MVP plays vs bots** on the real netcode architecture.
 - **Format:** **1v1** MVP; architecture must not preclude solo/FFA/teams later.
 - **Business:** **F2P, cosmetics-only** in-game store. No ads. No pay-to-win.
@@ -326,14 +374,95 @@ Plus any small feel/visual tweaks. Full context: `spearfighting_context_and_plan
 
 ---
 
+# COMPREHENSIVENESS PASS — added 2026-07-09
+
+*Gap analysis of WS0–WS16 vs "everything a shipped, networked F2P mobile game actually needs."
+WS0–WS16 covered the game systems well but under-specified the **production spine**: character
+art/animation, devops/observability, persistence/localization, trust-&-safety/anti-cheat depth,
+retention/notifications, and UA/marketing. Those are WS17–WS22 below. Nothing here changes the
+locked design; it makes the plan complete. Phase tags fold these into the existing milestones.*
+
+# WORKSTREAM 17 — Characters, Rigs & Animation ⚠
+
+*The opponent body is shared by the NPC bot and (later) PVP humans — they're identical to the
+sim — so this is built once and reused. Legs, not a blob. Animation is **sim-driven and never
+authoritative** (pose follows sim state; it must not feed back into movement/hits).*
+
+- **[P1]** Greybox articulated humanoid (legs/torso/arms/head) with a readable facing/pose. ✅ *done (primitives).*
+- **[P2]** ⚠ **Character concept + silhouette design** for the "enhanced Minecraft" look: chunky,
+  beveled, saturated/toon-shaded, with a silhouette readable **at distance in first-person**
+  (you must instantly parse the enemy's facing, stance, and charge/throw telegraph).
+- **[P2]** ⚠ **One shared humanoid rig** (Unity Humanoid/Mecanim, mobile-appropriate bone count)
+  so cosmetic skins **retarget** onto the same skeleton. Skinned mesh + weights; hands that hold a spear.
+- **[P2]** ⚠ **Animation set**, all driven by sim state (position/velocity/`AttackPhase`/grounded/health):
+  idle, locomotion **blend tree** (walk/run + strafe/back keyed off sim velocity), jump/fall/land,
+  **charge-windup → throw-release**, jab, hit-react, death (ragdoll or canned). **Root motion OFF** — the sim owns movement.
+- **[P2]** First-person **viewmodel animation** (arms + spear): idle sway, charge windup, throw,
+  jab, walk bob — must line up with the muzzle/arc origin. (Greybox viewmodel exists.)
+- **[P2]** ⚠ **Third-person legibility hooks** the sim exposes for animation/VFX: a clean read of
+  charge fraction, jab vs throw, grounded/airborne, hit/death — so the visual telegraph is honest.
+- **[P2]** LOD + bone/poly budgets tied to min-spec; skin/attachment system for cosmetics (WS12).
+- **[P3]** Network the pose seam: remote players animate from **replicated sim state**, not local input
+  (interpolated) — confirm no animation path can desync authoritative state.
+
+# WORKSTREAM 18 — DevOps, Infrastructure & Observability ⚠
+
+*The catalog had CI/CD as a stub. A live, networked, F2P game needs a real production spine.*
+
+- **[P1]** CI: PR gate runs `dotnet test` (sim) + Unity EditMode/PlayMode smoke on push; block merge on red.
+- **[P2]** CD: cloud builds (Unity Build Automation / GitHub Actions / Codemagic) → TestFlight + Play internal; **semantic versioning + build numbers**; signed builds; symbol upload.
+- **[P2]** Environments: **dev / staging / prod** separation for backend + remote config; per-env secrets management (never in the repo); config to point a build at an env.
+- **[P2]** ⚠ **Crash + error reporting** (Unity Cloud Diagnostics / Sentry / Backtrace): client crashes, exceptions, ANRs, with symbolication. **Non-negotiable before a public beta.**
+- **[P3]** Server/service observability (Photon/BaaS): dashboards, alerting (latency, error rate, CCU, match-fail rate), log aggregation, on-call/runbook.
+- **[P3]** ⚠ **Cost monitoring + budget alerts** (Photon CCU, BaaS ops, bandwidth) — a cosmetics-only volume model dies if infra cost/DAU is unmodeled.
+- **[P2]** Feature flags / kill switches (ties into remote config, WS11) so a bad system can be disabled without a store resubmit.
+
+# WORKSTREAM 19 — Persistence, Settings & Localization
+
+- **[P1]** Local settings persistence: control layout, sensitivity, audio, accessibility, quality — survive reinstall via cloud save where possible.
+- **[P1]** ⚠ **Save-data schema versioning + migration** (client and server): never brick a returning player when the data shape changes.
+- **[P3]** Cloud save + **account linking** (guest → Apple/Google), conflict resolution, device transfer.
+- **[P2]** ⚠ **Localization / i18n**: externalize ALL strings, font/glyph coverage (CJK), locale formatting, RTL check, and localized store listings; pick priority locales. Retrofitting this late is expensive.
+- **[P2]** Content/asset pipeline: **Addressables** for cosmetics + arenas; author → ingest → remote content delivery, with versioning so cosmetics ship without a client update.
+
+# WORKSTREAM 20 — Trust, Safety, Anti-Cheat & Legal ⚠
+
+*Server authority (WS10) is the backbone; this is the depth around it. Much is legally mandatory once real players + real money are involved.*
+
+- **[P3]** ⚠ **Anti-cheat plan** beyond server authority: input/rate sanity limits, movement/build validity checks server-side, speed/teleport/build-spam detection, and **replay/report review** (the deterministic sim makes server-side replay verification cheap — leverage it).
+- **[P3]** Player reporting + block; if any names/UGC (build-template names, display names) exist, a **moderation/profanity** path and a ban/enforcement system.
+- **[P4]** ⚠ **Legal/compliance (mandatory):** Privacy Policy, ToS/EULA, data-safety / privacy-nutrition labels, IARC content rating (combat game), IAP rules. **COPPA/GDPR-K age-gate MUST be resolved before launch** — if under-13s can play it reshapes analytics + data collection.
+- **[P4]** ⚠ **IAP receipt validation server-side** (fraud), refund/chargeback handling, purchase-restore.
+- **[P2]** Data-minimization + consent (analytics opt-in where required); a data-deletion path (GDPR/CCPA "delete my data").
+
+# WORKSTREAM 21 — Retention, Notifications & Social
+
+*Cosmetics-only is a **volume** business (§WS12) — retention is load-bearing for the business, not a nicety.*
+
+- **[P4]** Push notifications + re-engagement (season start, daily reward, "your rival is online") with opt-in/quiet-hours; deep links back into the right screen.
+- **[P4]** Daily/weekly engagement loops: login rewards, quests/challenges, streaks — all **cosmetic/earnable, never pay-to-win**.
+- **[P4]** Lightweight social: friends/invite, "play again", rematch; party/1v1-challenge-a-friend (small for MVP, architecture already supports 1v1→N).
+- **[P5+]** Leaderboards/seasons (already in WS11/WS16), spectate/replay-share (deterministic sim → cheap replays), clips.
+
+# WORKSTREAM 22 — Marketing, UA & Store Optimization (business)
+
+*Out of "make the game work," but part of "ship a functioning F2P product." Called out so it isn't a launch-week surprise.*
+
+- **[P4]** Store presence: **ASO** (title, keywords, screenshots, preview video), App Store Connect + Play Console listings, feature-graphic/press kit.
+- **[P4]** Capture/marketing tooling: in-engine screenshot/replay capture, a "cinematic" camera for trailers.
+- **[P4]** UA plan + attribution SDK (with privacy constraints: ATT on iOS, Play install referrer), creative testing; model **LTV vs CPI** for a cosmetics volume business.
+- **[P5+]** Community: Discord/socials, feedback intake, content-creator/beta program.
+
+---
+
 # Phase sequencing (how the workstreams stack into milestones)
 
 - **Phase 0 — Combat-feel prototype.** WS0 foundation + WS1 controls + WS2 movement + WS3 combat, all vs a dumb bot, greybox art. **Gate: is charge-aim-throw + jab + movement fun with two thumbs in first-person?** Everything stops here if no.
-- **Phase 1 — Core loop vs bots.** WS4 building (default ramp-wall + meter + cap, then voxel editor) + WS5 bots + WS6 greybox arena + WS9 core HUD + WS11 analytics/remote-config/data. **Gate: does live building + spear combat form a fun 1v1 match vs a real bot, in FP, without feeling blind?**
-- **Phase 2 — Art, audio, polish, perf.** WS7 art + WS8 audio + WS9 menus/tutorial + WS13 optimization to the min-spec floor + WS14 device/exploit testing. **Gate: looks and runs like a real game on a 2021 mid-range phone.**
-- **Phase 3 — Real-time multiplayer.** WS10 netcode + mutable-world sync + matchmaking + anti-cheat + WS11 accounts. **Gate: fair, responsive 1v1 across regions, builds and projectiles in sync.**
-- **Phase 4 — Store, monetization, compliance, launch prep.** WS12 economy/store + WS15 platform/compliance/beta. **Gate: submittable, compliant, monetized.**
-- **Phase 5+ — Launch & live-ops.** WS16.
+- **Phase 1 — Core loop vs bots.** WS4 building (default staircase + meter + cap, then voxel editor) + WS5 bots + WS6 greybox arena + WS9 core HUD + WS11 analytics/remote-config/data + **match/round state (win-lose, score, match flow)** + WS18 CI gate + WS17 greybox humanoid. **Gate: does live building + spear combat form a fun 1v1 match vs a real bot, in FP, without feeling blind?**
+- **Phase 2 — Art, audio, polish, perf.** WS7 art + **WS17 character rig + animation** + WS8 audio + WS9 menus/tutorial + WS13 optimization to the min-spec floor + WS19 localization/persistence + WS18 crash reporting + WS14 device/exploit testing. **Gate: looks and runs like a real game on a 2021 mid-range phone.**
+- **Phase 3 — Real-time multiplayer.** WS10 netcode + mutable-world sync + matchmaking + WS20 anti-cheat + WS11 accounts + WS18 server observability/cost. **Gate: fair, responsive 1v1 across regions, builds and projectiles in sync.**
+- **Phase 4 — Store, monetization, compliance, launch prep.** WS12 economy/store + WS15 + WS20 legal/compliance + WS21 retention/notifications + WS22 ASO/UA. **Gate: submittable, compliant, monetized.**
+- **Phase 5+ — Launch & live-ops.** WS16 (+ WS21 social/seasons, WS22 community).
 
 # Critical path — the two things that gate the whole project
 

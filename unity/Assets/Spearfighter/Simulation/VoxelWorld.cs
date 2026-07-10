@@ -93,6 +93,25 @@ namespace Spearfighter.Simulation
             return false;
         }
 
+        /// <summary>
+        /// True if the straight segment a→b passes through any solid cell or static
+        /// box. Coarse (~half-cell) point sampling — this is a cheap line-of-sight
+        /// test for the bot's reasoning (can I see / can my arc reach the foe?), not
+        /// a precise collision cast. The ground plane is NOT treated as blocking;
+        /// callers pass eye/torso points that already sit above it.
+        /// </summary>
+        public bool SegmentBlocked(Vector3 a, Vector3 b)
+        {
+            Vector3 d = b - a;
+            float len = d.Length();
+            if (len < 1e-4f) return PointInSolid(a);
+            int n = (int)(len / (CellSize * 0.5f)) + 1;
+            // skip the endpoints: a may sit inside the shooter, b inside the target.
+            for (int i = 1; i < n; i++)
+                if (PointInSolid(a + d * ((float)i / n))) return true;
+            return false;
+        }
+
         /// <summary>Where a downward-ish aim ray meets the ground plane (y = baseY).</summary>
         public bool AimGroundPoint(Vector3 origin, Vector3 dir, float baseY, out Vector3 hit)
         {

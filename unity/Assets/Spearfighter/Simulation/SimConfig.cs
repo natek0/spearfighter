@@ -57,6 +57,11 @@ namespace Spearfighter.Simulation
         public float JabDamage = 18f;          // NEW (tune): per-jab damage
         public float MaxHealth = 100f;         // NEW (tune)
 
+        // ---- match / stocks (Phase 1 match structure — NEW, tune) ----
+        public int MatchLives = 3;                 // stocks per player; lose all → you lose the match
+        public float RespawnDelaySeconds = 2.0f;   // delay before respawn while lives remain
+        public float MatchResetDelaySeconds = 4.0f;// results freeze before the auto-rematch
+
         // ---- trajectory preview ----
         public int TrajectoryMaxPoints = 60;   // TRAJ_MAX
         public float TrajectoryStepDt = 0.045f;// prototype preview integration step
@@ -75,7 +80,17 @@ namespace Spearfighter.Simulation
         public float BotRangeTolerance = 3f;
         public float BotReactionSeconds = 0.25f;
         public float BotChargeSeconds = 0.7f;    // how long the bot charges before throwing
-        public float BotBuildChance = 0.15f;     // per decision, chance to build cover
+        public float BotBuildChance = 0.15f;     // legacy random-build rate (unused; superseded by tactical build)
+
+        // Bot depth (Phase 1 "real opponent"): all data-driven so difficulty is tunable.
+        public float BotTurnRateRadPerSec = 3.0f;   // how fast the bot slews its aim
+        public float BotDodgeTimeToImpact = 0.5f;    // react to an incoming spear landing within this (s)
+        public float BotDodgeRadius = 2.2f;          // ...only if its closest approach is within this (m)
+        public float BotBuildCooldownSeconds = 6.0f; // min gap between tactical cover builds
+        public float BotThreatMemorySeconds = 3.0f;  // "recently hit" window that arms cover-building
+        public float BotBuildAimPitch = -0.6f;       // look-down angle used while placing cover (rad)
+        public float BotStuckSpeedFrac = 0.30f;      // < this fraction of expected progress ⇒ "stuck"
+        public float BotStuckSeconds = 0.30f;        // ...for at least this long before routing around
 
         public static SimConfig Default() => new SimConfig();
     }

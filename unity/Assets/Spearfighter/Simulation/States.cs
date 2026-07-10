@@ -28,6 +28,11 @@ namespace Spearfighter.Simulation
 
         public float Health;
 
+        // Match stocks: start with SimConfig.MatchLives, lose one per death; at 0 the
+        // player is Eliminated (no respawn) and the opponent wins the match.
+        public int Lives;
+        public bool Eliminated;
+
         // Charge FSM (jab vs throw).
         public AttackPhase Phase = AttackPhase.Idle;
         public float ChargeHeldTime;

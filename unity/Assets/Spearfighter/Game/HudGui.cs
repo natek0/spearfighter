@@ -39,6 +39,8 @@ namespace Spearfighter.Game
                     break;
                 case SimEventType.Jab when e.ActorId == _local:
                     _flash = 0.06f; break;
+                case SimEventType.MatchReset:
+                    _hits = 0; break; // fresh match
             }
         }
 
@@ -92,9 +94,18 @@ namespace Spearfighter.Game
             y += barH + 8 * u;
             GUI.Label(new Rect(padX, y, lblW, barH), "BUILD", _small);
             DrawBar(new Rect(padX + lblW, y, barW, barH), p.BuildEnergy / _sim.Config.BuildMaxEnergy, new Color(0.37f, 0.69f, 1f));
+            y += barH + 8 * u;
+            GUI.Label(new Rect(padX, y, lblW, barH), "LIVES", _small);
+            DrawPips(padX + lblW, y, barH, p.Lives, _sim.Config.MatchLives, new Color(0.55f, 0.95f, 0.65f), u);
 
-            // arc toggle indicator (top-right, inside safe area)
+            // arc toggle + opponent lives (top-right, inside safe area)
             GUI.Label(new Rect(sa.xMax - 190 * u, padY, 170 * u, 28 * u), _runner.ShowTrajectory ? "arc: on" : "arc: off", _small);
+            var opp = Opponent();
+            if (opp != null)
+            {
+                GUI.Label(new Rect(sa.xMax - 190 * u, padY + 34 * u, 90 * u, barH), "ENEMY", _small);
+                DrawPips(sa.xMax - 100 * u, padY + 34 * u, barH, opp.Lives, _sim.Config.MatchLives, new Color(1f, 0.45f, 0.5f), u);
+            }
 
             // charge bar (bottom center) while charging
             if (p.Phase == AttackPhase.Charging && p.ChargeHeldTime > _sim.Config.TapMaxSeconds)
@@ -106,7 +117,20 @@ namespace Spearfighter.Game
             }
 
             if (_popTimer > 0) GUI.Label(new Rect(W / 2 - 150 * u, H / 2 - 90 * u, 300 * u, 60 * u), _popText, _pop);
-            if (!p.Alive) GUI.Label(new Rect(W / 2 - 150 * u, H / 2 + 40 * u, 300 * u, 34 * u), "respawning...", _pop);
+
+            if (_sim.MatchOver)
+            {
+                string title = _sim.WinnerId == _local ? "YOU WIN" : "YOU LOSE";
+                _pop.fontSize = (int)(64 * u);
+                GUI.Label(new Rect(W / 2 - 300 * u, H / 2 - 80 * u, 600 * u, 90 * u), title, _pop);
+                _pop.fontSize = (int)(42 * u);
+                int secs = Mathf.Max(1, Mathf.CeilToInt(_sim.MatchResetTimer));
+                GUI.Label(new Rect(W / 2 - 300 * u, H / 2 + 20 * u, 600 * u, 40 * u), $"rematch in {secs}…", _small);
+            }
+            else if (!p.Alive && !p.Eliminated)
+            {
+                GUI.Label(new Rect(W / 2 - 150 * u, H / 2 + 40 * u, 300 * u, 34 * u), "respawning…", _pop);
+            }
 
             if (_input != null && _input.IsTouch) DrawTouchControls(u);
             else GUI.Label(new Rect(padX, safeBottom - 30 * u, W, 26 * u),
@@ -132,6 +156,27 @@ namespace Spearfighter.Game
             DrawRect(g, fill);
             DrawBorder(g, new Color(1f, 1f, 1f, 0.85f), Mathf.Max(2f, 2.5f * u));
             GUI.Label(g, label, _btn);
+        }
+
+        /// <summary>First player that isn't the local one (the 1v1 opponent), or null.</summary>
+        private PlayerState Opponent()
+        {
+            for (int i = 0; i < _sim.Players.Count; i++)
+                if (i != _local) return _sim.Players[i];
+            return null;
+        }
+
+        /// <summary>Row of stock pips: `filled` of `total` drawn solid, the rest hollow.</summary>
+        private void DrawPips(float x, float y, float h, int filled, int total, Color c, float u)
+        {
+            float s = h;                 // pip = bar-height square
+            float gap = 6 * u;
+            for (int i = 0; i < total; i++)
+            {
+                var r = new Rect(x + i * (s + gap), y, s, s);
+                DrawRect(r, i < filled ? c : new Color(c.r, c.g, c.b, 0.18f));
+                DrawBorder(r, new Color(1f, 1f, 1f, 0.5f), 2f);
+            }
         }
 
         // ---- helpers (screen rects are y-up; GUI is y-down) ----

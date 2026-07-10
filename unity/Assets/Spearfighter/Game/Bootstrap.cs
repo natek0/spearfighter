@@ -29,8 +29,9 @@ namespace Spearfighter.Game
             var sim = new SimCore(cfg, seed);
 
             BuildArena(sim);
-            var human = sim.AddPlayer(new System.Numerics.Vector3(0, 0, 18f), yaw: 0f);       // faces -Z
-            var bot = sim.AddPlayer(new System.Numerics.Vector3(0, 0, -9f), yaw: Mathf.PI);   // faces +Z
+            // Symmetric spawns: equal distance from the central cover wall (z=0).
+            var human = sim.AddPlayer(new System.Numerics.Vector3(0, 0, 15f), yaw: 0f);        // faces -Z
+            var bot = sim.AddPlayer(new System.Numerics.Vector3(0, 0, -15f), yaw: Mathf.PI);   // faces +Z
 
             BuildEnvironmentVisuals();
             var cam = EnsureCamera(cfg.EyeHeight);
@@ -65,18 +66,45 @@ namespace Spearfighter.Game
             }
         }
 
+        // Arena half-extents (playfield). Bounds walls sit on these; spawns are inside.
+        private const float ArenaHalfX = 16f;
+        private const float ArenaHalfZ = 20f;
+
         private static void BuildArena(SimCore sim)
         {
-            // Mirrors the validated prototype greybox: a cover wall forcing arced
-            // lobs, plus pillars for depth reference and stick targets.
-            AddBox(sim, 0, 1.3f, 0, 12, 2.6f, 0.7f);
-            AddBox(sim, -8, 1.6f, -3, 1.2f, 3.2f, 1.2f);
-            AddBox(sim, 8, 1.6f, -3, 1.2f, 3.2f, 1.2f);
-            AddBox(sim, -6, 1.4f, -16, 1.2f, 2.8f, 1.2f);
-            AddBox(sim, 6, 1.4f, -16, 1.2f, 2.8f, 1.2f);
+            // Greybox is now SYMMETRIC about z=0 so a 1v1 is fair from either spawn:
+            // a central cover wall forcing arced lobs, plus mirrored pillars for depth
+            // reference, cover, and stick targets.
+            AddBox(sim, 0, 1.3f, 0, 12f, 2.6f, 0.7f);           // central cover wall
+            AddBox(sim, -8, 1.6f, 5f, 1.2f, 3.2f, 1.2f);        // mid flanking pillars (mirrored ±Z)
+            AddBox(sim, 8, 1.6f, 5f, 1.2f, 3.2f, 1.2f);
+            AddBox(sim, -8, 1.6f, -5f, 1.2f, 3.2f, 1.2f);
+            AddBox(sim, 8, 1.6f, -5f, 1.2f, 3.2f, 1.2f);
+            AddBox(sim, -6, 1.4f, 12f, 1.2f, 2.8f, 1.2f);       // near-spawn cover (mirrored ±Z)
+            AddBox(sim, 6, 1.4f, 12f, 1.2f, 2.8f, 1.2f);
+            AddBox(sim, -6, 1.4f, -12f, 1.2f, 2.8f, 1.2f);
+            AddBox(sim, 6, 1.4f, -12f, 1.2f, 2.8f, 1.2f);
+
+            BuildBounds(sim);
         }
 
-        private static void AddBox(SimCore sim, float cx, float cy, float cz, float sx, float sy, float sz)
+        /// <summary>
+        /// A solid perimeter so neither the player nor the bot can wander off the
+        /// greybox into the void (WS6 world bounds). Sim-owned walls (same static-box
+        /// collision the arena uses); no separate out-of-bounds volume needed because
+        /// the floor is flat and the walls are closed.
+        /// </summary>
+        private static void BuildBounds(SimCore sim)
+        {
+            const float h = 5f, t = 1f, cy = 2.5f;
+            float spanX = ArenaHalfX * 2f + t, spanZ = ArenaHalfZ * 2f + t;
+            AddBox(sim, ArenaHalfX, cy, 0, t, h, spanZ, wall: true);   // +X
+            AddBox(sim, -ArenaHalfX, cy, 0, t, h, spanZ, wall: true);  // -X
+            AddBox(sim, 0, cy, ArenaHalfZ, spanX, h, t, wall: true);   // +Z
+            AddBox(sim, 0, cy, -ArenaHalfZ, spanX, h, t, wall: true);  // -Z
+        }
+
+        private static void AddBox(SimCore sim, float cx, float cy, float cz, float sx, float sy, float sz, bool wall = false)
         {
             var min = new System.Numerics.Vector3(cx - sx / 2, cy - sy / 2, cz - sz / 2);
             var max = new System.Numerics.Vector3(cx + sx / 2, cy + sy / 2, cz + sz / 2);
@@ -84,11 +112,12 @@ namespace Spearfighter.Game
 
             // matching visual (Unity collider stripped — sim owns collision)
             var go = GameObject.CreatePrimitive(PrimitiveType.Cube);
-            go.name = "ArenaBox";
+            go.name = wall ? "ArenaBounds" : "ArenaBox";
             var col = go.GetComponent<UnityEngine.Collider>(); if (col != null) Destroy(col);
             go.transform.position = new Vector3(cx, cy, cz);
             go.transform.localScale = new Vector3(sx, sy, sz);
-            SetColor(go, new Color(0.50f, 0.50f, 0.53f)); // arena structures = medium grey
+            // bounds walls read a touch darker so they don't compete with cover.
+            SetColor(go, wall ? new Color(0.34f, 0.34f, 0.38f) : new Color(0.50f, 0.50f, 0.53f));
         }
 
         private void BuildEnvironmentVisuals()
@@ -96,7 +125,10 @@ namespace Spearfighter.Game
             var ground = GameObject.CreatePrimitive(PrimitiveType.Plane);
             ground.name = "Ground";
             var col = ground.GetComponent<UnityEngine.Collider>(); if (col != null) Destroy(col);
-            ground.transform.position = Vector3.zero;
+            // Ground a hair below the sim ground plane (y=0) so it isn't exactly
+            // coplanar with object bottoms (which would z-fight even with a correct
+            // depth buffer). Small enough to be invisible. Sim grounds players at y=0.
+            ground.transform.position = new Vector3(0f, -0.02f, 0f);
             ground.transform.localScale = new Vector3(20, 1, 20); // plane is 10u => 200u
             SetColor(ground, new Color(0.12f, 0.12f, 0.14f)); // ground = dark grey
 
@@ -124,6 +156,7 @@ namespace Spearfighter.Game
             }
             cam.fieldOfView = 74f;                       // prototype FOV
             cam.nearClipPlane = 0.1f;
+            cam.farClipPlane = 250f;                     // was 1000; a tighter far plane keeps depth precision high
             cam.clearFlags = CameraClearFlags.Skybox;              // blue gradient sky
             cam.backgroundColor = new Color(0.30f, 0.52f, 0.80f);  // fallback blue if no skybox
             return cam;

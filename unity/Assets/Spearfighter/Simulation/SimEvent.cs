@@ -2,7 +2,7 @@ using System.Numerics;
 
 namespace Spearfighter.Simulation
 {
-    public enum SimEventType { SpearThrown, Jab, Hit, SpearStuck, BuildPlaced, BuildEvicted, Death, Respawn, ChargeStart }
+    public enum SimEventType { SpearThrown, Jab, Hit, SpearStuck, BuildPlaced, BuildEvicted, Death, Respawn, ChargeStart, LifeLost, MatchOver, MatchReset }
     public enum HitKind { None, Jab, Throw }
 
     /// <summary>

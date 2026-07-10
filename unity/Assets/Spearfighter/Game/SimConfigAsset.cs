@@ -53,6 +53,11 @@ namespace Spearfighter.Game
         public float jabDamage = 18f;
         public float maxHealth = 100f;
 
+        [Header("Match / stocks")]
+        public int matchLives = 3;
+        public float respawnDelaySeconds = 2.0f;
+        public float matchResetDelaySeconds = 4.0f;
+
         [Header("Trajectory preview")]
         public int trajectoryMaxPoints = 60;
         public float trajectoryStepDt = 0.045f;
@@ -71,7 +76,17 @@ namespace Spearfighter.Game
         public float botRangeTolerance = 3f;
         public float botReactionSeconds = 0.25f;
         public float botChargeSeconds = 0.7f;
-        public float botBuildChance = 0.15f;
+        public float botBuildChance = 0.15f; // legacy (unused)
+
+        [Header("Bot depth (Phase 1 — tune on device)")]
+        public float botTurnRateRadPerSec = 3.0f;
+        public float botDodgeTimeToImpact = 0.5f;
+        public float botDodgeRadius = 2.2f;
+        public float botBuildCooldownSeconds = 6.0f;
+        public float botThreatMemorySeconds = 3.0f;
+        public float botBuildAimPitch = -0.6f;
+        public float botStuckSpeedFrac = 0.30f;
+        public float botStuckSeconds = 0.30f;
 
         public SimConfig ToSimConfig()
         {
@@ -90,6 +105,8 @@ namespace Spearfighter.Game
                 MuzzleForward = muzzleForward, MuzzleRight = muzzleRight, MuzzleUp = muzzleUp,
                 EnemyHurtRadius = enemyHurtRadius, SpearDamage = spearDamage,
                 JabDamage = jabDamage, MaxHealth = maxHealth,
+                MatchLives = matchLives, RespawnDelaySeconds = respawnDelaySeconds,
+                MatchResetDelaySeconds = matchResetDelaySeconds,
                 TrajectoryMaxPoints = trajectoryMaxPoints, TrajectoryStepDt = trajectoryStepDt,
                 BuildMaxEnergy = buildMaxEnergy, BuildEnergyRegenPerSec = buildEnergyRegenPerSec,
                 BuildCostPerPlace = buildCostPerPlace, MaxSimultaneousBuilds = maxSimultaneousBuilds,
@@ -97,6 +114,12 @@ namespace Spearfighter.Game
                 BotPreferredRange = botPreferredRange, BotRangeTolerance = botRangeTolerance,
                 BotReactionSeconds = botReactionSeconds, BotChargeSeconds = botChargeSeconds,
                 BotBuildChance = botBuildChance,
+                BotTurnRateRadPerSec = botTurnRateRadPerSec,
+                BotDodgeTimeToImpact = botDodgeTimeToImpact, BotDodgeRadius = botDodgeRadius,
+                BotBuildCooldownSeconds = botBuildCooldownSeconds,
+                BotThreatMemorySeconds = botThreatMemorySeconds,
+                BotBuildAimPitch = botBuildAimPitch,
+                BotStuckSpeedFrac = botStuckSpeedFrac, BotStuckSeconds = botStuckSeconds,
             };
         }
     }

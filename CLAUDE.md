@@ -12,10 +12,19 @@ combat**. Free-to-play, **cosmetics-only** monetization (no ads, no pay-to-win).
 - **Phase 0 rebuilt in Unity 6.5 (`6000.5.3f1`) and played on iPhone.** Movement,
   charge-aim-throw + jab, arced trajectory preview, live **voxel** building (walk up it), a
   first-person viewmodel, and a basic bot all work on-device. Combat feel is broadly landing.
-- **Phase 1 in progress.** Default voxel-staircase building + energy meter + simultaneous cap
-  done; **voxel custom-build editor, real bot depth, arena polish, analytics/remote-config remain.**
-- **Next:** make the bot a real opponent + tighten the arena (test the Phase-1 "fun 1v1 vs a bot
-  in FP" gate), then the voxel editor. See `spearfighting_task_catalog.md` for live status.
+- **Phase 1 in progress.** Building + energy meter + cap done. **Bot depth + arena tightening
+  done** (LOS/arc fire discipline, dodging, reactive cover, stuck-routing; symmetric + bounded
+  arena). **"Glitchy map" fixed** (root cause: URP shaders on the built-in pipeline broke depth
+  writing — `Mats` now matches shaders to the active pipeline; runs on **built-in + `Standard`**,
+  renders correctly. A headless URP-asset attempt broke rendering and was **reverted** — redo URP
+  via the editor wizard + Play-verify, never headless.) **NPC now an articulated humanoid (legs)**.
+  **Match structure done:** stock-based **3-life** match with win/lose + auto-rematch, HUD life
+  pips + banner (sim-owned, unit-tested; 25 sim tests). **Remain:** voxel custom-build editor,
+  analytics/remote-config, bot difficulty tiers.
+- **Next:** on-device feel test of the full match, then the **voxel custom-build editor** and the
+  **analytics/remote-config seam** to close Phase 1. See `spearfighting_task_catalog.md`. The
+  catalog got a **comprehensiveness pass** (WS17–WS22: characters/animation, devops/observability,
+  persistence/localization, trust-&-safety/anti-cheat, retention, UA).
 
 ## Tech stack (decided)
 - **Engine:** Unity 6.5 (`6000.5.3f1`), C#, **URP** (mobile render pipeline).
@@ -45,6 +54,9 @@ combat**. Free-to-play, **cosmetics-only** monetization (no ads, no pay-to-win).
   build cost, and a **cap on simultaneous builds** (oldest despawns). Fairness/anti-turtle
   constraints deferred to post-MVP.
 - **Projectile miss:** spear **sticks** into build/floor. **No destruction** for now.
+- **Characters:** opponent body (NPC bot + future PVP players) = **articulated humanoid with
+  legs** on **one shared rig** (skins retarget); local player = **first-person viewmodel**.
+  **Animation is sim-driven, never authoritative.** Greybox now; rigged art Phase 2.
 - **Format:** **1v1** for MVP; architecture must not preclude solo/FFA/teams later. Real-time
   PvP is the goal; **MVP plays vs bots** running on the real netcode architecture.
 

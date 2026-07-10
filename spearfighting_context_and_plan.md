@@ -46,6 +46,11 @@ These are the *actual* decisions we build to. Changing one is a rewrite, not a t
   simultaneous builds** (oldest despawns). Fairness/anti-turtle constraints deferred to
   post-MVP.
 - **Projectile miss:** spear **sticks** into build/floor. **No destruction** for now.
+- **Characters:** the opponent body (NPC bot *and* future PVP players — identical to the
+  sim) is an **articulated humanoid with legs**, not a blob, on **one shared humanoid rig**
+  so cosmetic skins retarget cleanly; the local player is a **first-person viewmodel**
+  (arms + spear). **Animation is sim-driven and never authoritative** (pose follows sim
+  state; it can't feed back into movement or hit resolution). Greybox now; rigged art Phase 2.
 - **Format:** **1v1** for MVP; architecture must not preclude solo/FFA/teams later.
   Real-time PvP is the goal; **MVP plays vs bots** on the real architecture.
 - **Business:** F2P, cosmetics-only in-game store. No ads. No pay-to-win.
