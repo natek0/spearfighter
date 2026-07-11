@@ -1,0 +1,18 @@
+{
+    "name": "Spearfighter.Net",
+    "rootNamespace": "Spearfighter.Net",
+    "references": [
+        "Spearfighter.Simulation",
+        "Spearfighter.Game",
+        "Fusion.Unity"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": true,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

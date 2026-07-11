@@ -8,4 +8,7 @@ EditorBuildSettings:
   - enabled: 1
     path: Assets/gamev1.unity
     guid: a86ab8a5551df476896b6a1cc19721dc
+  - enabled: 1
+    path: Assets/Spearfighter/Net/NetTest.unity
+    guid: 50db555bf6a1e4e0ba94d25f908fdab2
   m_configObjects: {}

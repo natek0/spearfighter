@@ -20,6 +20,13 @@ sysinfo.txt
 *.apk
 *.aab
 *.ipa
+unity/mono_crash.*.json
+
+# ---- Photon Fusion SDK (licensed middleware; re-import via fusion_setup.md) ----
+# Not committed: keeps the repo lean and keeps the Photon App ID out of the repo.
+# Our netcode references Fusion by its stable package GUIDs, so it resolves on re-import.
+unity/Assets/Photon/
+unity/Assets/Photon.meta
 
 # ---- dotnet (sim + tests) ----
 sim/**/bin/
